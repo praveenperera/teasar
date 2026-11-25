@@ -28,7 +28,7 @@ crate-type = ["cdylib", "rlib"]
 
 [features]
 # metal is on by default and a no-op off macOS, where none of its dependencies are built
-default = []
+default = ["metal"]
 # the PyO3 module teasar._core
 python = ["dep:pyo3", "dep:numpy", "dep:ndarray"]
 # the Metal backend; it builds only on macOS and is a no-op elsewhere
@@ -55,3 +55,7 @@ objc2-metal = { version = "0.3.2", optional = true, default-features = false, fe
 
 [profile.release]
 debug = 1
+
+[[example]]
+name = "msl_check"
+required-features = ["metal"]
