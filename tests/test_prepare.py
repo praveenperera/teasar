@@ -4,6 +4,7 @@ the device API, on every device the run enables."""
 from __future__ import annotations
 
 import hashlib
+import importlib.metadata
 import os
 import random
 import subprocess
@@ -541,7 +542,8 @@ def test_device_properties(dev):
     assert isinstance(dev.name, str) and dev.name
     used, working = dev.memory()
     assert used >= 0 and working >= 0
-    assert tm.__version__ == "0.1.0"
+    # the module reports the version of the installed distribution, which comes from Cargo.toml
+    assert tm.__version__ == importlib.metadata.version("teasar")
     if os.environ.get("TEASAR_GPU") == "1":
         ok, reason = tm.check_available()
         assert ok and reason == dev.name or dev.backend == "cpu", reason
