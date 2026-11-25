@@ -1,0 +1,45 @@
+[build-system]
+requires = ["maturin>=1.9,<2"]
+build-backend = "maturin"
+
+[project]
+name = "teasar"
+# the version of Cargo.toml, so the wheel, the sdist and the crate always agree
+dynamic = ["version"]
+description = "TEASAR skeletonisation of villa's surface-track slabs, with a Metal backend for Apple GPUs and a pure-Rust CPU reference"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Praveen Perera", email = "me@praveenperera.com" }]
+keywords = ["teasar", "skeletonization", "skeleton", "metal", "gpu", "vesuvius-challenge", "herculaneum", "villa"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Science/Research",
+  "Operating System :: MacOS",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Rust",
+  "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = ["numpy>=1.24"]
+
+[project.urls]
+Repository = "https://github.com/praveenperera/teasar"
+Documentation = "https://github.com/praveenperera/teasar/blob/master/README.md"
+Changelog = "https://github.com/praveenperera/teasar/blob/master/CHANGELOG.md"
+Issues = "https://github.com/praveenperera/teasar/issues"
+
+[tool.maturin]
+bindings = "pyo3"
+python-source = "python"
+module-name = "teasar._core"
+# metal is a no-op off macOS, so a plain `pip install` gets the Metal backend on a Mac and the CPU reference elsewhere
+features = ["python", "metal"]
+# the release profile keeps line tables for profiling; wheels ship without them
+strip = true
