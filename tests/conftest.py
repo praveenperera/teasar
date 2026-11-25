@@ -17,7 +17,7 @@ import fixtures  # noqa: E402
 import teasar as tm  # noqa: E402
 
 GPU = os.environ.get("TEASAR_GPU") == "1"
-# TEASAR_DEVICES=gpu keeps CPU-only tests out of a GPU queue job
+# TEASAR_DEVICES=gpu keeps CPU-only tests out of a GPU-only run
 DEVICES = os.environ.get("TEASAR_DEVICES", "cpu,gpu" if GPU else "cpu").split(",")
 
 _open: dict[str, object] = {}

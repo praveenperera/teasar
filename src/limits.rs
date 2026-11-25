@@ -1,9 +1,9 @@
-//! The per-call limits (spec part A §2.5) as one table: each limit's name and default
+//! The per-call limits as one table: each limit's name and default
 //!
 //! Every limit but `output_bytes` is an input check, which runs before any work and raises
 //! [`Error::InputTooLarge`] through [`Limits::check`]. `output_bytes` is the output check, which runs once a call's
-//! results are known and raises [`Error::OutputTooLarge`] through [`Limits::check_output`]. The spec revises the
-//! values, so a change is one row of [`TABLE`]
+//! results are known and raises [`Error::OutputTooLarge`] through [`Limits::check_output`]. Changing a value
+//! is one row of [`TABLE`]
 
 use crate::{Error, Result};
 
@@ -29,11 +29,11 @@ const TABLE: [Row; 6] = [
     Row { limit: Limit::BlockBytes, name: "block_bytes", default: 512 << 20 },
     // each pooled axis of a slab: keeps coordinates exact in float32 and squared distances inside uint32
     Row { limit: Limit::AxisPooled, name: "axis_pooled", default: 32_768 },
-    // one slab at full resolution: part A's 5.5 bytes per voxel stay inside the working set
+    // one slab at full resolution: the pre-skeleton stages' 5.5 bytes per voxel stay inside the working set
     Row { limit: Limit::SlabVoxels, name: "slab_voxels", default: 3 << 26 },
-    // one slab pooled: part B's 48 bytes per pooled voxel stay inside the working set
+    // one slab pooled: the skeleton stages' 48 bytes per pooled voxel stay inside the working set
     Row { limit: Limit::SlabPooled, name: "slab_pooled", default: 1 << 24 },
-    // a call's pooled voxels, summed over its slabs: the labels retained between part A and part B
+    // a call's pooled voxels, summed over its slabs: the labels retained between the pre-skeleton and skeleton stages
     Row { limit: Limit::CallPooled, name: "call_pooled", default: 1 << 26 },
     // the arrays a call returns
     Row { limit: Limit::OutputBytes, name: "output_bytes", default: 512 << 20 },

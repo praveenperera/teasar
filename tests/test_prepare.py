@@ -1,4 +1,5 @@
-"""Acceptance tests A1-A4 and A6 (spec part A §7), on every device the run enables."""
+"""Tests of the labelling stage (prepare_labels and prepare_from_block), the input checks and limits, determinism and
+the device API, on every device the run enables."""
 
 from __future__ import annotations
 
@@ -61,11 +62,11 @@ def test_macos_build_has_metal():
     assert ok, msg
 
 
-# ---- A1 ----
+# ---- labels match villa ----
 
 
 @needs_data
-def test_a1_prepare_from_block_matches_villa(dev, block):
+def test_prepare_from_block_matches_villa(dev, block):
     out = from_block(dev, block, SPECS)
     bad = {}
     for key, got in zip(KEYS, out):
@@ -79,7 +80,7 @@ def test_a1_prepare_from_block_matches_villa(dev, block):
 
 
 @needs_data
-def test_a1_prepare_labels_matches_villa(dev, block):
+def test_prepare_labels_matches_villa(dev, block):
     bad = {}
     for key, spec in zip(KEYS, SPECS):
         got = prep(dev, F.unpack_slab(block, spec))
@@ -92,16 +93,16 @@ def test_a1_prepare_labels_matches_villa(dev, block):
 
 
 @needs_data
-def test_a1_bool_input_matches_uint8(dev, block):
+def test_bool_input_matches_uint8(dev, block):
     dense = F.unpack_slab(block, F.slab_spec("h:8500"))
     np.testing.assert_array_equal(prep(dev, dense.astype(bool)), prep(dev, dense))
 
 
-# ---- A2 (labels; the skeleton half needs part B) ----
+# ---- batching and slab order change nothing ----
 
 
 @needs_data
-def test_a2_shuffle_and_split_change_nothing(dev, block):
+def test_shuffle_and_split_change_nothing(dev, block):
     base = from_block(dev, block, SPECS)
     for per_call in (1, 7):
         for i in range(0, 40, per_call):
@@ -119,7 +120,7 @@ def test_a2_shuffle_and_split_change_nothing(dev, block):
 
 @needs_data
 @needs_testing_build()
-def test_a2_internal_batching_changes_nothing(fresh, block):
+def test_internal_batching_changes_nothing(fresh, block):
     specs = SPECS[:8] + SPECS[192:200] + SPECS[288:296]
     want = fresh.prepare_from_block(block, F.YX, specs, **F.PUBLISHED)
     for cells in (1, 300_000, 2_000_000):
@@ -129,7 +130,7 @@ def test_a2_internal_batching_changes_nothing(fresh, block):
             np.testing.assert_array_equal(a, b)
 
 
-# ---- A3 ----
+# ---- edge cases ----
 
 
 @pytest.mark.skipif(os.environ.get("TEASAR_GPU") != "1", reason="GPU only")
@@ -139,7 +140,7 @@ def test_check_available_names_the_gpu():
     assert reason.startswith("Apple")
 
 
-def test_a3_all_zero_slab(dev):
+def test_all_zero_slab(dev):
     z = np.zeros((6, 9, 10), np.uint8)
     got = prep(dev, z)
     assert got.shape == (3, 4, 5) and got.dtype == np.uint32 and not got.any()
@@ -149,7 +150,7 @@ def test_a3_all_zero_slab(dev):
     assert out[1].shape == (3, 2, 5) and not out[1].any()
 
 
-def test_a3_all_zero_slab_extract_is_empty(dev):
+def test_all_zero_slab_extract_is_empty(dev):
     blk = np.zeros((8, 8, 1), np.uint8)
     assert_empty_packed(dev.extract(blk, 8, [("h", 0, 4)], **F.EXTRACT_VILLA)[0])
 
@@ -164,7 +165,7 @@ def assert_empty_packed(p):
 
 
 @needs_data
-def test_a3_thin_slab(dev, block):
+def test_thin_slab(dev, block):
     # a slab may be thinner than the set's depth only where it ends at the block's edge
     thin = ("h", F.Z1 - F.Z0 - 1, F.Z1 - F.Z0)
     assert dev.prepare_from_block(block, F.YX, [thin, F.slab_spec("h:8500")], **F.PUBLISHED)[0] is None
@@ -176,7 +177,7 @@ def test_a3_thin_slab(dev, block):
 
 
 @needs_data
-def test_a3_partial_last_byte(dev, block):
+def test_partial_last_byte(dev, block):
     dense = np.ascontiguousarray(np.unpackbits(block[432:436], axis=-1, bitorder="big")[:, :, :1533])
     for settings, depth in ((P, 2), (V, 4)):
         part = np.ascontiguousarray(dense[:depth])
@@ -190,7 +191,7 @@ def test_a3_partial_last_byte(dev, block):
 
 
 @needs_data
-def test_a3_byte_crossing_vx_slab(dev, block):
+def test_byte_crossing_vx_slab(dev, block):
     want_bits = np.unpackbits(block, axis=-1, bitorder="big")[:, :, 6:10]
     np.testing.assert_array_equal(F.unpack_slab(block, ("vx", 6, 10)), want_bits)
     got = dev.prepare_from_block(block, F.YX, [("vx", 6, 10)], **F.PUBLISHED)[0]
@@ -199,13 +200,13 @@ def test_a3_byte_crossing_vx_slab(dev, block):
 
 
 @needs_data
-def test_a3_downsample_4_matches_villa(dev, block):
-    keys = F.slab_keys(F.B1_DS4)
+def test_downsample_4_matches_villa(dev, block):
+    keys = F.slab_keys(F.BOX_SLABS_DS4)
     specs = [F.slab_spec(k, V) for k in keys]
     from_blk = from_block(dev, block, specs, F.VILLA)
     bad = {}
     for key, spec, got_blk in zip(keys, specs, from_blk):
-        want = F.fixture_labels(key, F.B1_DS4)
+        want = F.fixture_labels(key, F.BOX_SLABS_DS4)
         got = prep(dev, F.unpack_slab(block, spec), V)
         assert got.dtype == np.uint32 and got.shape == want.shape == got_blk.shape, key
         n = int((got != want).sum()) + int((got_blk != want).sum())
@@ -214,7 +215,7 @@ def test_a3_downsample_4_matches_villa(dev, block):
     assert not bad, f"mismatched voxels per slab: {bad}"
 
 
-def test_a3_two_components_in_one_cell(dev):
+def test_two_components_in_one_cell(dev):
     # two 6-components that share every 2 x 2 x 2 cell: two x-lines differing in y and z
     v = np.zeros((2, 2, 120), np.uint8)
     v[0, 0] = 1
@@ -225,7 +226,7 @@ def test_a3_two_components_in_one_cell(dev):
 
 
 @needs_data
-def test_a3_connection_only_through_the_crop(dev):
+def test_connection_only_through_the_crop(dev):
     # two strips joined only in row y = 2, which the crop to a multiple of 2 removes
     plane = np.array([[1, 0, 1, 0], [1, 0, 1, 0], [1, 1, 1, 0]], np.uint8)
     v = np.ascontiguousarray(np.broadcast_to(plane, (100, 3, 4)))
@@ -240,7 +241,7 @@ def test_a3_connection_only_through_the_crop(dev):
 
 @needs_data
 @pytest.mark.parametrize("settings", [P, V])
-def test_a3_size_filter_boundaries(dev, settings):
+def test_size_filter_boundaries(dev, settings):
     f = F.size_filter_fixture(settings)
     binary = np.ascontiguousarray(f["binary"])
     got = prep(dev, binary, settings)
@@ -296,11 +297,11 @@ def test_checkerboard_overflows_node_capacity(dev, settings):
     np.testing.assert_array_equal(got, want)
 
 
-# ---- A4 ----
+# ---- errors and limits ----
 
 
 @needs_data
-def test_a4_errors_are_exceptions(dev, block):
+def test_errors_are_exceptions(dev, block):
     v = np.zeros((4, 4, 4), np.uint8)
     with pytest.raises(ValueError):
         prep(dev, v.astype(np.float32))
@@ -327,7 +328,7 @@ def test_a4_errors_are_exceptions(dev, block):
 
 
 @needs_data
-def test_a4_settings_are_named(dev, block):
+def test_settings_are_named(dev, block):
     v = np.ones((4, 4, 4), np.uint8)
     lab = [np.zeros((2, 2, 2), np.uint32)]
     slab = [F.slab_spec("h:8500")]
@@ -405,7 +406,7 @@ def test_a4_settings_are_named(dev, block):
 
 @needs_data
 @needs_testing_build()
-def test_a4_limits(fresh, block):
+def test_input_limits(fresh, block):
     big = 1 << 40
     spec = F.slab_spec("h:8500")
     vspec = F.slab_spec("vy:768")
@@ -428,7 +429,7 @@ def test_a4_limits(fresh, block):
 
     raises("block_bytes", block.nbytes - 1, from_blk([spec]), extract([spec]))
     raises("axis_pooled", longest - 1, from_blk([spec]), extract([spec]), labels, skel((1, 1, longest)))
-    # spec A4's per-axis case, with the limit lowered: a 1 x 1 x 70,001 pooled slab
+    # the per-axis case, with the limit lowered: a 1 x 1 x 70,001 pooled slab
     raises("axis_pooled", 70_000, skel((1, 1, 70_001)))
     raises("slab_voxels", dense.size - 1, from_blk([spec]), labels)
     raises("slab_pooled", h_pooled - 1, from_blk([spec]), labels, skel((1, 768, 768)))
@@ -442,9 +443,9 @@ def test_a4_limits(fresh, block):
 
 
 @needs_data
-def test_a4_whole_b1_in_one_call_is_too_large(dev, block):
-    # the default limits admit B1 only over several calls (spec part A §2.5's baseline partition); the input checks
-    # run before any work, so this fails at once
+def test_whole_box_in_one_call_is_too_large(dev, block):
+    # the default limits admit the fixture box only over several calls (the baseline partition); the input checks run
+    # before any work, so this fails at once
     assert len(F.slab_calls(SPECS)) > 1
     with pytest.raises(tm.InputTooLarge, match="call_pooled"):
         dev.extract(block, F.YX, SPECS, **F.EXTRACT_PUBLISHED)
@@ -452,7 +453,7 @@ def test_a4_whole_b1_in_one_call_is_too_large(dev, block):
 
 @needs_data
 @needs_testing_build()
-def test_a4_output_too_large_names_the_slab(fresh, block):
+def test_output_too_large_names_the_slab(fresh, block):
     edge = F.Z1 - F.Z0
     thin = ("h", edge - 1, edge)
     specs = [thin, F.slab_spec("h:8500"), F.slab_spec("vy:768"), F.slab_spec("h:8508")]
@@ -488,7 +489,7 @@ def test_a4_output_too_large_names_the_slab(fresh, block):
 
 @needs_testing_build()
 @pytest.mark.skipif(os.environ.get("TEASAR_GPU") != "1", reason="GPU only")
-def test_a4_injected_gpu_failure():
+def test_injected_gpu_failure():
     d = tm.Device()
     v = np.ones((4, 4, 4), np.uint8)
     d._inject_gpu_failure()
@@ -501,16 +502,16 @@ def test_a4_injected_gpu_failure():
     d.close()
 
 
-# ---- A6 ----
+# ---- determinism and ownership ----
 
 
 @needs_data
-def test_a6_determinism_in_and_across_processes(dev, block):
+def test_determinism_in_and_across_processes(dev, block):
     first = labels_digest(from_block(dev, block, SPECS))
     assert labels_digest(from_block(dev, block, SPECS)) == first
     kind = "gpu" if dev.backend == "metal" else "cpu"
     code = (
-        "import sys; sys.path.insert(0, 'tests'); import fixtures as F, test_part_a as T, conftest as C;"
+        "import sys; sys.path.insert(0, 'tests'); import fixtures as F, test_prepare as T, conftest as C;"
         f"print(T.labels_digest(T.from_block(C.open_device({kind!r}), F.block(), T.SPECS)))"
     )
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -519,7 +520,7 @@ def test_a6_determinism_in_and_across_processes(dev, block):
 
 
 @needs_data
-def test_a6_outputs_are_owned(fresh, block):
+def test_outputs_are_owned(fresh, block):
     a = fresh.prepare_from_block(block, F.YX, SPECS[:3], **F.PUBLISHED)
     b = prep(fresh, F.unpack_slab(block, SPECS[200]))
     snap = [x.copy() for x in a] + [b.copy()]
@@ -548,7 +549,7 @@ def test_device_properties(dev):
         assert c.backend == "cpu"
 
 
-# ---- §3.3: which labels get a skeleton, and their order ----
+# ---- which labels get a skeleton, and their order ----
 
 
 @needs_data
@@ -567,7 +568,7 @@ def test_skeleton_ids_and_order_match_kimimaro():
 
 @needs_data
 def test_call_statistics(dev, block):
-    """`last_stats()` (§1.4): the most recent call's wall and GPU-busy time, host threads and the piece split."""
+    """`last_stats()`: the most recent call's wall and GPU-busy time, host threads and the piece split."""
     keys = ("wall_s", "gpu_busy_s", "host_threads", "cpu_pieces", "cpu_voxels", "gpu_pieces", "gpu_voxels",
             "cpu_busy_s")
     slabs = [F.slab_spec(k) for k in F.slab_keys()[:3]]

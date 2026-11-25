@@ -1,4 +1,4 @@
-//! GPU self-tests for the test suite: the 64-bit atomic minimum (spec part B §3.2) and the float rules of part B
+//! GPU self-tests for the test suite: the 64-bit atomic minimum and the skeletoniser's float rules
 //! (correctly rounded square roots, divisions and reciprocals, and the PDRF's products and fused multiply-adds)
 
 use color_eyre::eyre::{Result, bail, ensure};
@@ -30,7 +30,7 @@ impl Rng {
 fn atomic64(gpu: &Gpu) -> Result<String> {
     let n = 1 << 20;
     let mut rng = Rng(7);
-    // keys shaped like the packed (cost << 32 | index) of §3.2: equal high words, so the low word decides
+    // keys shaped like the packed (cost << 32 | index) of the path search: equal high words, so the low word decides
     let input: Vec<u64> = (0..n).map(|_| (rng.next() & 0xffff_0000_ffff_ffff) | 0x3f80_0000_0000_0000).collect();
     let mut want = [u64::MAX; 4];
     for (i, &v) in input.iter().enumerate() {

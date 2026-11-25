@@ -1,8 +1,8 @@
-//! The CPU reference skeletoniser (spec part B §2): pieces, DBF, root, fields, mandatory face targets, the path loop
-//! and the packed output of one slab
+//! The CPU reference skeletoniser: pieces, DBF, root, fields, mandatory face targets, the path loop and the packed
+//! output of one slab
 //!
-//! Shortest paths are plain Dijkstra under the step rule of §3.2. The step rule gives every field a unique least
-//! fixed point, so these costs equal the GPU's bit for bit whatever order either relaxes in
+//! Shortest paths are plain Dijkstra under the shared step rule ([`step`]). The step rule gives every field a unique
+//! least fixed point, so these costs equal the GPU's bit for bit whatever order either relaxes in
 
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
@@ -65,7 +65,7 @@ pub mod prof {
     }
 }
 
-/// Trace counts of one call, for the profile (§3.3)
+/// Trace counts of one call, for the profile
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub struct Counts {
     pub pieces: u64,
@@ -112,7 +112,7 @@ pub fn skeletonize_slab(
         })
         .collect();
 
-    // labels in skeleton order (§2.8); each label's pieces are merged into the sorted form of §2.7
+    // labels in skeleton order; each label's pieces are merged into the sorted form of `Packed::push_sorted`
     let mut by_label: Vec<(u32, usize)> =
         kept.iter().enumerate().map(|(k, &p)| (slab.pieces.pieces[p as usize].label, k)).collect();
     by_label.sort_unstable();
@@ -173,7 +173,7 @@ impl<'a> Slab<'a> {
         let n = labels.data.len();
         let pieces = pieces26(labels);
 
-        // a piece that fills the array measures to the positions just outside it (§2.2)
+        // a piece that fills the array measures to the positions just outside it
         let full = pieces.pieces.len() == 1 && pieces.pieces[0].voxels as usize == n;
         let n_dbf = edt(&pieces.of_voxel, shape, [full; 3]);
         let pen_border = penalty_border(shape, full);
@@ -254,7 +254,7 @@ impl<'a> Slab<'a> {
         }
     }
 
-    /// The mandatory targets of §2.4, in tracing order, without duplicates
+    /// The mandatory face targets, in tracing order, without duplicates
     fn face_targets(&self, pid: u32, vox: &[u32]) -> Vec<usize> {
         let mut out = Vec::new();
         for layer in &self.layers {
@@ -354,7 +354,7 @@ impl<'a> Slab<'a> {
 /// The lexicographic order of a face pick: the README's four nearness filters, then the C index (smallest key wins)
 type FaceKey = (u128, u64, u64, u64, Reverse<usize>);
 
-/// The axes whose array border is penalty boundary (§2.5): those longer than 2; with none, the DBF's own rule, which
+/// The axes whose array border is penalty boundary: those longer than 2; with none, the DBF's own rule, which
 /// counts every axis only for a piece that fills the array
 pub fn penalty_border(shape: [usize; 3], full: bool) -> [bool; 3] {
     let long = shape.map(|s| s > 2);
@@ -418,7 +418,7 @@ impl PieceCtx<'_> {
     }
 }
 
-/// A piece's root and fields (spec part B §2.3 to §2.5), indexed by list entry; `d` holds cost bit patterns
+/// A piece's root and fields, indexed by list entry; `d` holds cost bit patterns
 pub struct PieceFields {
     pub root: usize,
     pub pen: Vec<f32>,
@@ -472,7 +472,7 @@ fn piece_fields(ctx: &PieceCtx<'_>, graph: &Graph) -> PieceFields {
     PieceFields { root, pen, d, p }
 }
 
-/// One piece's skeleton (spec part B §2.3 to §2.7); `local` maps a voxel of the piece to its list index
+/// One piece's skeleton; `local` maps a voxel of the piece to its list index
 pub fn trace_piece(ctx: &PieceCtx<'_>, local: impl Fn(usize) -> u32) -> PieceSkel {
     let vox = ctx.vox;
     let m = vox.len();
@@ -523,7 +523,7 @@ fn in_plane(axis: usize) -> (usize, usize) {
 }
 
 /// The 2D distances of the face layer at `index` along `axis`: the squared distance to the nearest voxel of another
-/// piece or background, with the plane's border counted as background (§2.4)
+/// piece or background, with the plane's border counted as background
 fn face_edt(of_voxel: &[u32], shape: [usize; 3], axis: usize, index: usize) -> Vec<u32> {
     let (u_ax, v_ax) = in_plane(axis);
     let (h, w) = (shape[u_ax], shape[v_ax]);
@@ -599,7 +599,7 @@ fn argmax(v: &[u32]) -> usize {
     best
 }
 
-/// The path loop's state for one piece (§2.6)
+/// The path loop's state for one piece
 struct Run<'s, L: Fn(usize) -> u32> {
     shape: [usize; 3],
     pid: u32,
@@ -746,7 +746,7 @@ impl<'s, L: Fn(usize) -> u32> Run<'s, L> {
         if self.in_s(q) { 0.0 } else { self.p[q] }
     }
 
-    /// The lowest-index expanded neighbour whose step reproduces `q`'s final cost (§3.2 phase 2)
+    /// The lowest-index expanded neighbour whose step reproduces `q`'s final cost
     fn predecessor(&self, q: usize) -> usize {
         let w = self.weight(q);
         self.graph
@@ -756,7 +756,7 @@ impl<'s, L: Fn(usize) -> u32> Run<'s, L> {
             .expect("every reached voxel but the target has a predecessor")
     }
 
-    /// Marks invalid every piece voxel strictly inside the ball of radius `scale * DBF + const` around `v` (§2.6)
+    /// Marks invalid every piece voxel strictly inside the ball of radius `scale * DBF + const` around `v`
     fn invalidate(&mut self, v: usize) {
         let ball = Ball::new(self.dbf[v], self.scale, self.constant, self.a);
         let k = ball.k as usize;
@@ -836,7 +836,7 @@ mod tests {
 
     #[test]
     fn synthetic_radii() {
-        // spec part B §4.3
+        // two labels side by side and a thin bar keep radius a everywhere; a 3×9×60 block has 2a inside its outer layer
         let mut two = vec![1u32; 120];
         two[60..].fill(2);
         let p = run([1, 2, 60], &two);

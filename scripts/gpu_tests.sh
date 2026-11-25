@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# GPU correctness run for a queue job step: a fast compile smoke, then the suite on the Metal device only
+# GPU correctness run: a fast compile smoke, then the suite on the Metal device only
 set -euo pipefail
 cd "$(dirname "$0")/.."
 source .venv/bin/activate

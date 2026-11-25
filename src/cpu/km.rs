@@ -1,8 +1,8 @@
-//! Compatibility mode on the host (spec addendum KM): the reference's face picks, root and target orders, path and
+//! Compatibility mode on the host: the reference's face picks, root and target orders, path and
 //! claim rules, for one call's label arrays
 //!
 //! Both backends run this on their host threads; the Metal backend's prepare stages feed it. The slab-wide stages
-//! (pieces, DBF) run for the whole call first, so `SomaUnsupported` is raised before any path search (KM1)
+//! (pieces, DBF) run for the whole call first, so `SomaUnsupported` is raised before any path search
 
 use std::cmp::{Ordering, Reverse};
 use std::collections::{BinaryHeap, VecDeque};
@@ -133,7 +133,7 @@ pub(crate) mod prof {
     }
 }
 
-/// The 26 offsets `(Δi0, Δi1, Δi2)` in KM0's join preference N
+/// The 26 offsets `(Δi0, Δi1, Δi2)` in the join preference N
 const JOIN_PREFERENCE: [[i8; 3]; 26] = [
     [-1, 0, 0],
     [1, 0, 0],
@@ -167,7 +167,7 @@ const JOIN_PREFERENCE: [[i8; 3]; 26] = [
 type SlabRun = (f32, Option<Result<(Packed, Counts)>>);
 
 /// The skeletons of each label array in compatibility mode, with the call's trace counts; `fix_borders(shape)` says
-/// whether border targets are on for a slab of that pooled shape (KM11)
+/// whether border targets are on for a slab of that pooled shape
 pub fn skeletonize(
     labels: &[LabelsRef<'_>],
     skel: &SkelSettings,
@@ -176,9 +176,9 @@ pub fn skeletonize(
 ) -> Result<(Vec<Packed>, Counts)> {
     let a = skel.anisotropy[0] as f32;
     let start = Instant::now();
-    // each slab runs its fields and then its traces as one task, so no phase barrier idles the threads. KM1 refuses
-    // the whole call, naming the first slab over the limit: every slab still computes its fields, and once any is
-    // over, no slab starts its traces. The traces in flight are discarded, so the outcome is the refusal alone
+    // each slab runs its fields and then its traces as one task, so no phase barrier idles the threads. The soma limit
+    // refuses the whole call, naming the first slab over the limit: every slab still computes its fields, and once any
+    // is over, no slab starts its traces. The traces in flight are discarded, so the outcome is the refusal alone
     let refused = AtomicBool::new(false);
     let out: Vec<SlabRun> = labels
         .par_iter()
@@ -220,7 +220,7 @@ pub fn skeletonize(
     Ok((packed, counts))
 }
 
-/// A slab's pieces and boundary distances (KM2, KM3)
+/// A slab's pieces and boundary distances
 struct Fields {
     pieces: Pieces,
     /// squared pooled distance to the nearest voxel outside the voxel's piece
@@ -231,7 +231,7 @@ struct Fields {
 impl Fields {
     fn new(labels: &LabelsRef<'_>, a: f32) -> Self {
         let pieces = pieces26(labels);
-        // KM3: the border is boundary only when one nonzero label fills the array, which is then one piece
+        // the border is boundary only when one nonzero label fills the array, which is then one piece
         let n = labels.data.len();
         let full = pieces.pieces.len() == 1 && pieces.pieces[0].voxels as usize == n;
         // background distances are never read
@@ -242,7 +242,7 @@ impl Fields {
     }
 }
 
-/// KM3's DBF of a voxel at squared pooled distance `n`: `sqrt32(fl32(a² n))`
+/// The DBF of a voxel at squared pooled distance `n`: `sqrt32(fl32(a² n))`
 #[inline]
 fn dbf(n: u32, a: f32) -> f32 {
     (a * a * n as f32).sqrt()
@@ -259,7 +259,7 @@ struct Slab<'a> {
     voxels: Vec<u32>,
     /// each voxel's index within its piece's list
     local: Vec<u32>,
-    /// each piece's face picks in KM4 order, as full-array coordinates; empty with border targets off
+    /// each piece's face picks in the order of `face_picks`, as full-array coordinates; empty with border targets off
     picks: Vec<Vec<[u32; 3]>>,
 }
 
@@ -331,7 +331,7 @@ impl<'a> Slab<'a> {
             .map(|((&p, prep), sorted)| self.piece(p).finish(prep, &sorted))
             .collect();
 
-        // KM10: each label's pieces merged and sorted, labels in skeleton order
+        // each label's pieces merged and sorted, labels in skeleton order
         let mut by_label: Vec<(u32, usize)> =
             kept.iter().enumerate().map(|(k, &p)| (pieces.pieces[p as usize].label, k)).collect();
         by_label.sort_unstable();
@@ -360,10 +360,10 @@ impl<'a> Slab<'a> {
     }
 }
 
-/// A piece between its fields and its traces: the root, the KM5 targets, and D in F order with that order
+/// A piece between its fields and its traces: the root, the mandatory targets, and D in F order with that order
 struct Prepared<'s> {
     root: usize,
-    km5: Vec<usize>,
+    mandatory: Vec<usize>,
     /// D, by list entry and in F order (for the argsort)
     d: Vec<f32>,
     d_f: Vec<f32>,
@@ -416,7 +416,8 @@ impl<'s> Piece<'s> {
         (coords, fidx, graph, dbf)
     }
 
-    /// KM5 and KM6's D, given the set order of the piece's picks (`None` for a piece with none)
+    /// The root, mandatory targets and geodesic distance D, given the set order of the piece's picks (`None` for a
+    /// piece with none)
     fn prepare(&self, set_order: Option<&[u32]>) -> Prepared<'s> {
         let t = Instant::now();
         let m = self.vox.len();
@@ -425,7 +426,7 @@ impl<'s> Piece<'s> {
         let far = |d: &[f32]| far_point(d, &fidx);
 
         let picks = &self.slab.picks[self.me as usize];
-        let (root, km5) = match set_order {
+        let (root, mandatory) = match set_order {
             None => {
                 let lowest = (0..m).min_by_key(|&i| fidx[i]).expect("a kept piece has voxels");
                 let root = far(&prof::time(prof::GEODESIC, || graph.geodesic(lowest, &lengths)));
@@ -443,35 +444,35 @@ impl<'s> Piece<'s> {
         };
         let d = prof::time(prof::GEODESIC, || graph.geodesic(root, &lengths));
         // the far-point target, when no pick remains after the root
-        let km5 = if km5.is_empty() { vec![far(&d)] } else { km5 };
+        let mandatory = if mandatory.is_empty() { vec![far(&d)] } else { mandatory };
 
-        // KM7 sorts D taken in F order
+        // the ordinary targets sort D taken in F order
         let mut forder: Vec<u32> = (0..m as u32).collect();
         forder.sort_unstable_by_key(|&i| fidx[i as usize]);
         let d_f: Vec<f32> = forder.iter().map(|&i| d[i as usize]).collect();
         let busy_ns = t.elapsed().as_nanos() as u64;
-        Prepared { root, km5, d, d_f, forder, coords, graph, dbf, busy_ns }
+        Prepared { root, mandatory, d, d_f, forder, coords, graph, dbf, busy_ns }
     }
 
-    /// KM6's penalty and the traces of KM7 to KM9, given numpy's argsort of the prepared D list
+    /// The penalty and the traces, given numpy's argsort of the prepared D list
     fn finish(&self, prep: Prepared<'_>, sorted: &[u32]) -> PieceOut {
         let t = Instant::now();
         let m = self.vox.len();
         let (coords, graph, dbf, d) = (&prep.coords, &prep.graph, &prep.dbf, &prep.d);
 
-        // KM6: the penalty
+        // the penalty
         let bmax = dbf.iter().copied().fold(0.0f32, f32::max);
         let max_d = d.iter().copied().fold(0.0f32, f32::max);
         let r_d = (max_d != 0.0).then(|| 1.0 / max_d);
         let pm = penalty_m(bmax);
         let p: Vec<f32> = (0..m).map(|i| penalty(dbf[i], pm, d[i], r_d)).collect();
 
-        // KM7: ordinary targets in the reversed argsort
+        // ordinary targets in the reversed argsort
         let ordinary: Vec<u32> = sorted.iter().rev().map(|&k| prep.forder[k as usize]).collect();
         let (scale, constant) = (self.slab.skel.scale as f32, self.slab.skel.constant as f32);
         let radius: Vec<f32> = dbf.iter().map(|&b| claim_radius(b, scale, constant)).collect();
         let mut run = Run::new(self, graph, coords, &prep.forder, &p, &radius, prep.root);
-        for &t in &prep.km5 {
+        for &t in &prep.mandatory {
             run.trace(t);
         }
         let mut traced = 0u64;
@@ -490,7 +491,7 @@ impl<'s> Piece<'s> {
             prof::max(prof::PIECE_MAX, busy_ns);
         }
         let counts =
-            Counts { pieces: 1, ordinary: traced, mandatory: prep.km5.len() as u64, voxels: m as u64, busy_ns };
+            Counts { pieces: 1, ordinary: traced, mandatory: prep.mandatory.len() as u64, voxels: m as u64, busy_ns };
         PieceOut { verts, edges, counts }
     }
 
@@ -559,7 +560,7 @@ fn neighbour_offsets(shape: [usize; 3]) -> [isize; 26] {
     STEPS.map(|[dz, dy, dx]| dz as isize * sz + dy as isize * sy + dx as isize)
 }
 
-/// The voxel of largest `d`, lowest F-index among ties (KM6)
+/// The voxel of largest `d`, lowest F-index among ties
 fn far_point(d: &[f32], fidx: &[u32]) -> usize {
     let mut best = 0;
     for i in 1..d.len() {
@@ -596,7 +597,7 @@ impl Graph<'_> {
         })
     }
 
-    /// KM6's geodesic distance D from `src`, every step a plain float32 addition of its length
+    /// The geodesic distance D from `src`, every step a plain float32 addition of its length
     fn geodesic(&self, src: usize, lengths: &[f32; 4]) -> Vec<f32> {
         let m = self.mask.len();
         let mut cost = vec![f32::INFINITY; m];
@@ -623,7 +624,7 @@ impl Graph<'_> {
     }
 }
 
-/// The trace loop's state for one piece (KM7 to KM9)
+/// The trace loop's state for one piece
 struct Run<'r> {
     piece: &'r Piece<'r>,
     graph: &'r Graph<'r>,
@@ -670,7 +671,7 @@ impl<'r> Run<'r> {
             frank[i as usize] = r as u32;
         }
         let mut in_s = vec![false; m];
-        // the root starts in S, but valid: KM9 claims run only after a trace
+        // the root starts in S, but valid: claims run only after a trace
         in_s[root] = true;
         Self {
             piece,
@@ -712,7 +713,7 @@ impl<'r> Run<'r> {
         prof::time(prof::CLAIM, || self.claim(&path));
     }
 
-    /// KM8: the path from `t` (outside S) to its join in S, as `t, …, p*, j`
+    /// The path from `t` (outside S) to its join in S, as `t, …, p*, j`
     fn search(&mut self, t: usize) -> Vec<usize> {
         for &i in &self.touched {
             self.cost[i] = f32::INFINITY;
@@ -721,7 +722,7 @@ impl<'r> Run<'r> {
         }
         self.touched.clear();
 
-        // keys are (cost bits, F rank), unique per voxel, so the pop order is the (cost, F-index) order of KM8
+        // keys are (cost bits, F rank), unique per voxel, so the pop order is the (cost, F-index) order of the search
         let key = |c: f32, f: u32| (u64::from(c.to_bits()) << 32) | u64::from(f);
         let mut heap = std::mem::take(&mut self.search_heap);
         heap.clear();
@@ -841,7 +842,7 @@ impl<'r> Run<'r> {
             .expect("p* has a neighbour in S")
     }
 
-    /// KM9: the path's valid voxels claim the valid voxels around them, nearest claim first
+    /// The path's valid voxels claim the valid voxels around them, nearest claim first
     ///
     /// Claims pop in (d, F-index, path position) order and a voxel is claimed by its first pop, so only its smallest
     /// (d, position) can win: a push that does not beat the voxel's best key so far is skipped. The heap then orders
@@ -910,7 +911,7 @@ impl<'r> Run<'r> {
     }
 }
 
-/// KM4: every piece's face picks, in KM4 order (faces in order, then regions by their first voxel's plane F-index),
+/// Every piece's face picks, in pick order (faces in order, then regions by their first voxel's plane F-index),
 /// as full-array coordinates; picks may repeat across faces
 fn face_picks(of_voxel: &[u32], shape: [usize; 3], a: f32, pieces: usize) -> Vec<Vec<[u32; 3]>> {
     let mut out = vec![Vec::new(); pieces];
@@ -1144,13 +1145,13 @@ mod tests {
         let p = run([z, y, x], &vec![1u32; z * y * x]).unwrap();
         assert_eq!(p.ids, vec![1]);
         assert_eq!(p.edges.len() + 1, p.vertices.len());
-        // KM3: one label fills the array, so the border is boundary
+        // one label fills the array, so the border is boundary
         assert!(p.radii.iter().all(|r| (2.0..=6.0).contains(r)), "{:?}", p.radii);
     }
 
     #[test]
     fn two_labels_covering_the_array_keep_radius_a() {
-        // part B §2.2's 1×2×60 array, on which the reference fails; the candidate keeps every radius a
+        // a 1×2×60 array of two labels, on which the reference fails; this mode keeps every radius a
         let mut two = vec![1u32; 120];
         two[60..].fill(2);
         let p = run([1, 2, 60], &two).unwrap();

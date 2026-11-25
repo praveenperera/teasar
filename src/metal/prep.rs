@@ -1,4 +1,4 @@
-//! Host side of the part A kernels (`shaders/metal/prep.metal`): batch planning, scratch, encoding, one wait per
+//! Host side of the pre-skeleton kernels (`shaders/metal/prep.metal`): batch planning, scratch, encoding, one wait per
 //! call
 //!
 //! A call's slabs are split into internal batches of at most `batch_cells` cells (a larger slab is a batch of its
@@ -148,7 +148,7 @@ impl Scratch {
     }
 }
 
-/// The part A pipeline on one device
+/// The pre-skeleton pipeline on one device
 pub struct Prep {
     scratch: Option<Scratch>,
     pub batch_cells: usize,

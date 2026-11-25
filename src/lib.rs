@@ -3,7 +3,7 @@
 //!
 //! The front end ([`Device`]) validates settings, limits and arrays, then hands validated work to a [`Backend`]:
 //! [`cpu::CpuBackend`] always, and `metal::MetalBackend` on macOS with the `metal` feature. Every backend returns the
-//! same [`Labels`] and [`Packed`] types, and the part A stages give identical results on every backend
+//! same [`Labels`] and [`Packed`] types, and the pre-skeleton stages give identical results on every backend
 
 pub mod compat;
 pub mod cpu;
@@ -72,7 +72,7 @@ pub trait Backend: Send {
     /// The skeletons of each label array
     fn skeletonize(&mut self, labels: &[LabelsRef<'_>], set: SettingsSet, skel: &SkelSettings) -> Result<Vec<Packed>>;
 
-    /// The skeletons in compatibility mode (addendum KM), on this backend's host threads
+    /// The skeletons in compatibility mode, on this backend's host threads
     fn skeletonize_compat(
         &mut self,
         labels: &[LabelsRef<'_>],
@@ -113,7 +113,7 @@ pub trait Backend: Send {
         Err(Error::NotImplemented("no GPU on this backend".into()))
     }
 
-    /// B7's field-level dump of each label array (spec part B §4.7), with every piece traced on this backend's own
+    /// The field-level dump of each label array, with every piece traced on this backend's own
     /// path (no host pieces on a GPU backend)
     #[cfg(feature = "testing")]
     fn fields(&mut self, _labels: &[LabelsRef<'_>], _skel: &SkelSettings) -> Result<Vec<skel::FieldDump>> {
@@ -145,7 +145,7 @@ impl Device {
         Ok(Self::with(Box::new(cpu::CpuBackend::new(threads)?)))
     }
 
-    /// The platform's GPU backend; its host pieces run on `TEASAR_CPU_THREADS` threads (spec part B §3.1)
+    /// The platform's GPU backend; its host pieces run on `TEASAR_CPU_THREADS` threads
     pub fn gpu() -> Result<Self> {
         #[cfg(all(feature = "metal", target_os = "macos"))]
         {
@@ -184,7 +184,7 @@ impl Device {
         Self { backend, limits: Limits::default(), last: CallStats::default() }
     }
 
-    /// The statistics of the most recent call (spec part A §1.4), all zero before the first
+    /// The statistics of the most recent call, all zero before the first
     pub fn last_stats(&self) -> CallStats {
         self.last
     }
@@ -216,12 +216,12 @@ impl Device {
         self.backend.as_mut()
     }
 
-    /// The pre-skeleton stages for one dense slab (spec §2.1)
+    /// The pre-skeleton stages for one dense slab
     pub fn prepare_labels(&mut self, binary: &[u8], shape: [usize; 3], set: SettingsSet) -> Result<Labels> {
         self.timed(|d| d.prepare_labels_call(binary, shape, set))
     }
 
-    /// The part A stages of `extract`: one label array per slab, `None` for a thin slab (spec §2.3)
+    /// The pre-skeleton stages of `extract`: one label array per slab, `None` for a thin slab
     pub fn prepare_from_block(
         &mut self,
         block: &Block<'_>,
@@ -231,7 +231,7 @@ impl Device {
         self.timed(|d| d.prepare_from_block_call(block, slabs, set))
     }
 
-    /// The skeletons of each label array (spec §2.2), tracing targets in `order`
+    /// The skeletons of each label array, tracing targets in `order`
     pub fn skeletonize(
         &mut self,
         labels: &[LabelsRef<'_>],
@@ -242,7 +242,7 @@ impl Device {
         self.timed(|d| d.skeletonize_call(labels, set, fix_borders, order))
     }
 
-    /// The fused path: pre-skeleton stages then skeletons, for each slab of `block` (spec §2.3)
+    /// The fused path: pre-skeleton stages then skeletons, for each slab of `block`
     pub fn extract(
         &mut self,
         block: &Block<'_>,

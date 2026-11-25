@@ -57,7 +57,7 @@ pub struct MetalBackend {
 
 impl MetalBackend {
     /// Opens the device and starts the kernel build in the background; host pieces run on `TEASAR_CPU_THREADS`
-    /// threads, read once here, by default the performance cores (spec part B §3.1)
+    /// threads, read once here, by default the performance cores
     pub fn open() -> Result<Self> {
         let host_threads = match std::env::var("TEASAR_CPU_THREADS") {
             Ok(v) => v

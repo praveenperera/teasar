@@ -1,7 +1,8 @@
-"""A7: part A stage benchmark (spec §5.2), plus the copy-kernel bandwidth and the device memory.
+"""Benchmark of the labelling stage, plus the copy-kernel bandwidth and the device memory.
 
-prepare_from_block on all 384 B1 slabs, over the baseline partition of §2.5; wall clock from the first call's entry
-to the last call's return. One warm-up pass, then the median of 5 passes, in one process. Run unprofiled, at medium.
+prepare_from_block on all 384 slabs of the fixture box, over the baseline partition; wall clock from the first call's
+entry to the last call's return. One warm-up pass, then the median of 5 passes, in one process. Run unprofiled, at
+medium.
 """
 
 import os
@@ -49,7 +50,7 @@ def main():
     times = [one_pass(dev, blk, plan) for _ in range(5)]
     print(f"gpu util after {gpu_util()}%, load {os.getloadavg()}")
     print(f"warm-up {warm:.4f} s; passes {' '.join(f'{t:.4f}' for t in times)}")
-    print(f"A7 median {statistics.median(times):.4f} s (budget 0.5 s)")
+    print(f"prepare_from_block median {statistics.median(times):.4f} s")
     print(f"device memory (allocated, working set) {dev.memory()}")
     if kind == "gpu" and getattr(tm._core, "TESTING", False):
         bw = [dev._bench_copy(1 << 30, 20) for _ in range(3)]

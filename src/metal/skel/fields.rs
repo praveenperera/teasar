@@ -1,4 +1,4 @@
-//! B7's field-level dump on the GPU (spec part B §4.7): the path loop runs with `F_FIELDS_STOP`, which ends each
+//! The field-level dump on the GPU: the path loop runs with `F_FIELDS_STOP`, which ends each
 //! piece after its fields with D, DBF and B left in its workspace
 
 use color_eyre::eyre::{Result, ensure};

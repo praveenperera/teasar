@@ -1,4 +1,4 @@
-//! Call statistics (spec part A §1.4): always collected, cheap enough for timed runs
+//! Call statistics: always collected, cheap enough for timed runs
 
 /// What a device's most recent call did: its wall time, the GPU's busy time, and where the pieces ran
 #[derive(Debug, Clone, Copy, Default, PartialEq)]

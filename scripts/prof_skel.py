@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Times `skeletonize` on all 384 B1 fixture label arrays, in calls over spec part A §2.5's baseline partition
+"""Times `skeletonize` on all 384 fixture label arrays of the fixture box, in calls over the baseline partition
 (TEASAR_PROFILE=1 prints the phase split to stderr).
 
 usage: prof_skel.py [cpu|gpu] [--every N]"""

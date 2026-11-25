@@ -1,9 +1,9 @@
-"""A10: the fused extract stage benchmark (spec part A §5.3), which part B's B9 projection uses.
+"""Benchmark of the fused extract stage, and the end-to-end projection built on it.
 
-extract on all 384 B1 slabs, over the baseline partition of §2.5, at published_0211; wall clock from the first call's
-entry to the last call's return, including every part A and part B dispatch and copying the Packed arrays out. One
-warm-up pass, then the median of 5 passes, in one process. Run unprofiled, at medium; TEASAR_PROFILE=1 runs one
-profiled pass for the per-kernel profile instead.
+extract on all 384 slabs of the fixture box, over the baseline partition, at published_0211; wall clock from the
+first call's entry to the last call's return, including every labelling and skeletonization dispatch and copying the
+Packed arrays out. One warm-up pass, then the median of 5 passes, in one process. Run unprofiled, at medium;
+TEASAR_PROFILE=1 runs one profiled pass for the per-kernel profile instead.
 
 usage: bench_extract.py [gpu|cpu] [best|kimimaro]
 """
@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "tests"))
 import fixtures as F  # noqa: E402
 import teasar as tm  # noqa: E402
 
-# the B9 projection's host costs on the harness mock: read and bit-pack, track walk, DBM write (part B §4.9)
+# the end-to-end projection's host costs, measured on the harness mock: read and bit-pack, track walk, DBM write
 HOST_SECS = 3.7
 
 
@@ -54,7 +54,7 @@ def main():
     med = statistics.median(times)
     print(f"load {os.getloadavg()}")
     print(f"warm-up {warm:.3f} s; passes {' '.join(f'{t:.3f}' for t in times)}; {verts} vertices")
-    print(f"A10 median {med:.3f} s; B9 projection {med + HOST_SECS:.2f} s (gate 24 s, target 8 s)")
+    print(f"extract median {med:.3f} s; end-to-end projection {med + HOST_SECS:.2f} s")
     print(f"device memory (allocated, working set) {dev.memory()}")
 
 

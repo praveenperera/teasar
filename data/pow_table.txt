@@ -1,5 +1,5 @@
-# Addendum KM6 power table: float32 bits of Bmax, then of the required Bmax^fl32(1.01), where these differ
-# from the correctly rounded power. From km6_pow.tsv (addendum draft 4), deduplicated across a = 2 and a = 4
+# The compatibility mode's power table: float32 bits of Bmax, then of Bmax^fl32(1.01) as the reference platform
+# computes it, for every Bmax where that differs from the correctly rounded power, at anisotropy 2 and 4
 41a00000 41a4dd9d
 41b22b20 41b7c8c2
 41c87abc 41cf0ae4

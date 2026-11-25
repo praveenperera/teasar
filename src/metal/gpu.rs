@@ -34,11 +34,11 @@ use crate::Error;
 /// The shared header, prepended to every library
 const COMMON: &str = include_str!("../../shaders/metal/common.metal");
 
-/// The kernel libraries, each compiled on its own after [`COMMON`], so a compile failure in one (part B's
+/// The kernel libraries, each compiled on its own after [`COMMON`], so a compile failure in one (the
 /// skeletoniser) leaves the others usable and surfaces only when one of its kernels is dispatched
 const LIBRARIES: [(&str, &[&str]); 2] = [
-    ("part A", &[include_str!("../../shaders/metal/prep.metal")]),
-    ("part B", &[include_str!("../../shaders/metal/skel.metal")]),
+    ("prep", &[include_str!("../../shaders/metal/prep.metal")]),
+    ("skel", &[include_str!("../../shaders/metal/skel.metal")]),
 ];
 
 /// Test builds add a kernel that writes past its buffer, so a validation run can show it catches one
@@ -147,7 +147,7 @@ pub fn compile_library(
     source: &str,
 ) -> Result<Retained<ProtocolObject<dyn MTLLibrary>>> {
     let options = MTLCompileOptions::new();
-    // safe math turns off unsafe float optimisations; part B's float code also guards its own rounding (see
+    // safe math turns off unsafe float optimisations; the skeletoniser's float code also guards its own rounding (see
     // skel.metal), so it doesn't depend on what this leaves on
     options.setLanguageVersion(MTLLanguageVersion::Version4_0);
     options.setMathMode(MTLMathMode::Safe);
@@ -156,8 +156,8 @@ pub fn compile_library(
         .map_err(|e| eyre!("{}", e.localizedDescription()))
 }
 
-/// A 64-bit atomic minimum on device memory, which spec part B §3.2 lists from Apple9 and leaves unverified on this
-/// Mac; compiled as its own library so a failure stays local to the probe
+/// A 64-bit atomic minimum on device memory, which Metal supports from Apple9; compiled as its own library so a
+/// failure stays local to the probe
 pub const ATOMIC64_SOURCE: &str = "
 #include <metal_stdlib>
 using namespace metal;
@@ -205,8 +205,8 @@ fn build_kernels(device: &ProtocolObject<dyn MTLDevice>) -> Result<Built> {
             Err(e) => built.failed.push(("atomic64 probe", format!("{e:#}"))),
         }
     }
-    // the part A library is required; part B's failure is reported when its kernels are used
-    if let Some((name, why)) = built.failed.iter().find(|(n, _)| *n == "part A") {
+    // the prep library is required; the skel library's failure is reported when its kernels are used
+    if let Some((name, why)) = built.failed.iter().find(|(n, _)| *n == "prep") {
         bail!("compile the Metal kernels ({name}): {why}");
     }
 
@@ -427,7 +427,7 @@ pub struct Gpu {
     build: RefCell<Option<JoinHandle<Result<Built>>>>,
     kernels: OnceCell<Built>,
     batch: RefCell<Option<Batch>>,
-    /// Committed command buffers not yet waited on
+    /// Committed command buffers that have not been waited on
     inflight: RefCell<Vec<Retained<ProtocolObject<dyn MTLCommandBuffer>>>>,
     profile: Option<RefCell<Profiler>>,
     /// GPU start and end times of the command buffers waited on since the last take, in host seconds

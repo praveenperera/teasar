@@ -1,5 +1,5 @@
-// Part B on the GPU: 26-connected pieces, the distance transforms, the border targets and every piece's path loop,
-// for all slabs of an internal batch at once
+// The skeletoniser on the GPU: 26-connected pieces, the distance transforms, the border targets and every piece's path
+// loop, for all slabs of an internal batch at once
 //
 // Kernel order per batch (src/metal/skel.rs drives it):
 //   sk_ccl_init, sk_ccl_union, sk_ccl_flag, scan, sk_ccl_pid                       -> host wait 1 (piece table)
@@ -7,10 +7,10 @@
 //   sk_run, repeated until every piece is done                                     -> host wait per dispatch
 //
 // Voxel indices are batch-global C-order indices; slabs are contiguous, so within a slab they order like the slab's
-// own C order. A piece's voxel list is in arbitrary (scatter) order: every tie the spec breaks by "lowest index" is
-// broken here by the global index, never by the list position, so the output does not depend on the list order
+// own C order. A piece's voxel list is in arbitrary (scatter) order: every "lowest index" tie is broken by the
+// global index, never by the list position, so the output does not depend on the list order
 //
-// Float rules (spec part B §2.2, §2.5, §3.2) are kept exactly: radii use a correctly rounded square root, PDRF
+// The shared float rules are kept exactly: radii use a correctly rounded square root, PDRF
 // divisions are correctly rounded, and products that feed an addition pass through `opq` so the compiler cannot fuse
 // them into a multiply-add
 
@@ -313,7 +313,7 @@ kernel void sk_maxpen(device const uint* p_pid [[buffer(0)]],
     atomic_fetch_max_explicit(&p_max[k], p_pen[i], memory_order_relaxed);
 }
 
-// ---- border targets (§2.4) ----
+// ---- border targets ----
 //
 // A layer is one face of one slab, laid out densely as h x w over its two in-plane axes in array order, so a
 // layer-local index orders like the voxel index. Regions are the 8- (or 4-) connected sets of one kept piece in the
@@ -419,7 +419,7 @@ inline ulong sk_centroid_key(uint n, uint su, uint sv, uint u, uint v) {
 }
 
 // word k of a voxel's pick key; a word the mode does not use is 0 for every voxel. Every term fits 32 bits: plane axes
-// are at most 32,768 long (part A's per-axis limit)
+// are at most 32,768 long (the per-axis pooled limit)
 inline uint sk_pick_word(uint mode, uint k, ulong centroid, SkLayer l, uint u, uint v) {
     uint h = l.h - 1, w = l.w - 1;
     bool readme = mode == PICK_README;
@@ -591,7 +591,7 @@ constant uint F_MAND_FIRST = 4;
 constant uint F_DAF = 8;
 constant uint F_ROOT_SHIFT = 4;  // 3 bits: RootStart in src/skel.rs order
 constant uint F_UNSQUARED = 128;
-// test builds' B7 field dump: stop after the fields, keeping D in WS_COST and DBF and B radii in the heap arrays
+// test builds' field dump: stop after the fields, keeping D in WS_COST and DBF and B radii in the heap arrays
 constant uint F_FIELDS_STOP = 256;
 constant uint ROOT_C = 0, ROOT_F = 1, ROOT_DBF = 2, ROOT_FACE = 3, ROOT_FACE_LAST = 4, ROOT_FACE_FAR = 5;
 
@@ -792,7 +792,7 @@ inline uint sk_geo_step(thread SkCtx& c, thread uint& hn) {
     return i;
 }
 
-// the lowest-index neighbour of q, outside S and reached, whose step reproduces q's cost (§3.2 phase 2)
+// the lowest-index neighbour of q, outside S and reached, whose step reproduces q's cost
 inline uint sk_pred(thread SkCtx& c, uint q) {
     device uint* cost = arr(c, WS_COST);
     device uint* vid = arr(c, WS_VID);
@@ -820,7 +820,7 @@ inline uint sk_pred(thread SkCtx& c, uint q) {
     return NONE;
 }
 
-// the PDRF of §2.5 in its fixed float order (src/skel.rs `pdrf`); rb and rd are the piece's reciprocals of max B and
+// the PDRF in its fixed float order (src/skel.rs `pdrf`); rb and rd are the piece's reciprocals of max B and
 // max D, each correctly rounded. Every addition is an explicit fma, and the addend's product is hidden behind opq
 inline float pdrf(float b, float rb, float d, float rd, uint flags, uint zero) {
     float t = b * rb;

@@ -1,4 +1,4 @@
-//! The Python module `teasar._core` (spec part A §2)
+//! The Python module `teasar._core`
 //!
 //! Every call releases the GIL while the device works; a device's mutex lets one call at a time run on it
 
@@ -178,7 +178,7 @@ fn kimimaro_value(v: &Setting) -> bool {
     matches!(&v.0, Value::Text(t) if t == "kimimaro")
 }
 
-/// The orders compatibility mode takes from the running interpreter (addendum KM5.1, KM7), compiled once: a fresh
+/// The orders compatibility mode takes from the running interpreter, compiled once: a fresh
 /// built-in set the picks are added to in order, and numpy's default argsort
 const ORDERS_SOURCE: &std::ffi::CStr = c"
 import numpy
@@ -293,7 +293,7 @@ macro_rules! device_methods {
                 self.0.run(py, |d| Ok(d.name()))
             }
 
-            /// The statistics of the device's most recent call (spec part A §1.4): `wall_s`, `gpu_busy_s`,
+            /// The statistics of the device's most recent call: `wall_s`, `gpu_busy_s`,
             /// `host_threads`, `cpu_pieces`, `cpu_voxels`, `gpu_pieces`, `gpu_voxels` and `cpu_busy_s`
             fn last_stats<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyDict>> {
                 let s = self.0.run(py, |d| Ok(d.last_stats()))?;
@@ -361,9 +361,9 @@ macro_rules! device_methods {
                 Ok(labels_to_py(py, labels))
             }
 
-            /// The part A stages of `extract`: one label array per slab, None for a thin slab
+            /// The pre-skeleton stages of `extract`: one label array per slab, None for a thin slab
             #[pyo3(signature = (block, x_size, slabs, *, settings, downsample, min_count, max_count))]
-            // the keyword arguments are the spec's Python signature
+            // the keyword arguments are the Python API's signature
             #[allow(clippy::too_many_arguments)]
             fn prepare_from_block(
                 &self,
@@ -557,7 +557,7 @@ macro_rules! device_methods {
                 self.0.run(py, |d| d.backend_mut().selftest(name))
             }
 
-            /// Test hook: B7's field-level dump (spec part B §4.7) of each labels array under target_order='best',
+            /// Test hook: the field-level dump of each labels array under target_order='best',
             /// as dicts of flat uint32 arrays `dbf`, `b`, `d`, `p` (float32 bits by slab voxel, 0xFFFFFFFF outside
             /// traced pieces) and `roots` (slab voxel indices, ascending)
             #[cfg(feature = "testing")]
@@ -650,7 +650,7 @@ device_methods!(CpuDevice, {
     }
 });
 
-/// Test hook: the labels of a pooled array that get a skeleton, in skeleton order (spec §3.3)
+/// Test hook: the labels of a pooled array that get a skeleton, in skeleton order
 #[cfg(feature = "testing")]
 #[pyfunction]
 fn _skeleton_ids(labels: PyReadonlyArray3<'_, u32>, dust_threshold: u32) -> PyResult<Vec<u32>> {

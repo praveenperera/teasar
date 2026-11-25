@@ -1,4 +1,4 @@
-//! The 26-connected pieces of a pooled label array and which labels get a skeleton (spec part A §3.3)
+//! The 26-connected pieces of a pooled label array and which labels get a skeleton
 //!
 //! A label is made of 26-connected pieces; a label with at least one piece over `dust_threshold` voxels yields one
 //! skeleton, and skeletons are ordered by each label's first occurrence in a Fortran-order (first axis fastest) scan
@@ -113,7 +113,7 @@ pub fn skeleton_ids(labels: &LabelsRef<'_>, pieces: &Pieces, dust_threshold: u32
     keep.sort_unstable();
     keep.dedup();
     let mut first_f = vec![u64::MAX; keep.len()];
-    // the first voxel of a kept piece: dust pieces do not count toward a label's place (the fixtures' order)
+    // the first voxel of a kept piece: dust pieces do not count toward a label's place, matching the reference's order
     for (i, &p) in pieces.of_voxel.iter().enumerate() {
         let Some(piece) = pieces.pieces.get(p as usize).filter(|pc| pc.voxels > dust_threshold) else { continue };
         let Ok(k) = keep.binary_search(&piece.label) else { continue };

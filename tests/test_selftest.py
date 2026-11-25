@@ -1,5 +1,5 @@
-"""GPU self-tests of part B's building blocks: the 64-bit atomic minimum of spec part B §3.2 (unverified on this Mac
-until this runs) and the float rules (correctly rounded square roots and divisions)."""
+"""GPU self-tests of the skeletonizer's building blocks: the 64-bit atomic minimum and the float rules (correctly
+rounded square roots and divisions)."""
 
 from __future__ import annotations
 

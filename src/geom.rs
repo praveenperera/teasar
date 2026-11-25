@@ -1,4 +1,4 @@
-//! The bit-packed block, slab geometry, and bit packing (spec part A §2.3 and §3.1)
+//! The bit-packed block, slab geometry, and bit packing
 
 use std::fmt;
 
@@ -88,7 +88,7 @@ impl SlabKind {
     }
 }
 
-/// A slab as the caller names it: `(kind, lo, hi)` in block-local coordinates, not yet checked against a block
+/// A slab as the caller names it: `(kind, lo, hi)` in block-local coordinates, before it is checked against a block
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SlabSpec {
     pub kind: SlabKind,

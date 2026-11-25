@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The GPU suite under Metal's API and shader validation (A5); fails on any validation message
+# The GPU suite under Metal's API and shader validation; fails on any validation message
 set -euo pipefail
 cd "$(dirname "$0")/.."
 mkdir -p _scratch

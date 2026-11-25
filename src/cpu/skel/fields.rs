@@ -1,4 +1,4 @@
-//! B7's field-level dump on the CPU reference (spec part B §4.7): every traced piece's fields, as the path loop
+//! The field-level dump on the CPU reference: every traced piece's fields, as the path loop
 //! starts from them
 
 use rayon::prelude::*;

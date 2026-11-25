@@ -1,4 +1,4 @@
-//! `Packed`: the skeletons of one slab (spec part A §3.2)
+//! `Packed`: the skeletons of one slab
 
 /// Skeletons in flat arrays: skeleton k has vertices `v_off[k]..v_off[k+1]` and edges `e_off[k]..e_off[k+1]`, and
 /// its edges index its own vertices from 0
@@ -18,7 +18,7 @@ impl Packed {
         Self { v_off: vec![0], e_off: vec![0], ..Self::default() }
     }
 
-    /// Appends the skeleton of label `id` in the sorted form of spec part B §2.7: vertices in increasing C-order index
+    /// Appends the skeleton of label `id` in sorted form: vertices in increasing C-order index
     /// of their voxel, every edge written (lower, higher), and the edge rows sorted
     ///
     /// `verts` holds (voxel index in the slab, radius) for every vertex of every piece of the label, in any order and

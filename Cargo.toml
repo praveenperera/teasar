@@ -14,7 +14,7 @@ categories = ["science", "computer-vision"]
 include = [
     "/src/**",
     "/shaders/**",
-    "/data/km6_pow.txt",
+    "/data/pow_table.txt",
     "/examples/**",
     "/README.md",
     "/CHANGELOG.md",
@@ -33,7 +33,7 @@ default = ["metal"]
 python = ["dep:pyo3", "dep:numpy", "dep:ndarray"]
 # the Metal backend; it builds only on macOS and is a no-op elsewhere
 metal = ["dep:objc2", "dep:objc2-foundation", "dep:objc2-metal", "dep:bytemuck", "dep:color-eyre"]
-# hooks the acceptance tests need: lowered limits, small internal batches, an injected GPU failure
+# hooks the tests need: lowered limits, small internal batches, an injected GPU failure
 testing = []
 
 [dependencies]

@@ -1,4 +1,4 @@
-//! The error kinds the Python API maps to its exceptions (spec part A §2.7)
+//! The error kinds the Python API maps to its exceptions
 
 use std::fmt;
 

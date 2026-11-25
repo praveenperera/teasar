@@ -1,5 +1,5 @@
-// Part A on the GPU: 6-connected components at full resolution, max-pool by ds and the pooled size filter, for
-// every slab of an internal batch at once
+// The pre-skeleton stages on the GPU: 6-connected components at full resolution, max-pool by ds and the pooled size
+// filter, for every slab of an internal batch at once
 //
 // The full-resolution label volume never exists. Each pooled cell (ds^3 voxels, at most 64 bits, read straight
 // from the bit-packed block) splits into its 6-connected pieces; pieces are the nodes of a union-find, joined across

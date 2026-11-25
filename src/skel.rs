@@ -1,8 +1,8 @@
-//! Rules every backend's skeletoniser shares (spec part B §2 and §3.2): the step rule, the radius rule, the PDRF in
-//! its fixed float order, the invalidation reach, and the open choices of §5
+//! Rules every backend's skeletoniser shares: the step rule, the radius rule, the PDRF in
+//! its fixed float order, the invalidation reach, and the open choices
 //!
 //! The CPU reference and the Metal kernels evaluate these with the same float32 operations in the same order, which
-//! is what makes their output bit-identical (B7)
+//! is what makes their output bit-identical
 
 use crate::{Error, Result};
 
@@ -38,10 +38,10 @@ pub fn step_lengths(a: f64) -> [f32; 4] {
     [0.0, a as f32, (a * 2f64.sqrt()) as f32, (a * 3f64.sqrt()) as f32]
 }
 
-/// The PDRF of §2.5 in its fixed float32 order, with the powers of `u` flushed to zero below the normal range; `r_b` and `r_d` are the piece's reciprocals of max B and max D, each
-/// rounded once ([`reciprocal`]). Every addition is inside an explicit fused multiply-add and no other product feeds
-/// an addition, so a GPU compiler has nothing to contract and every backend gets the same bits. Without `daf_term`,
-/// the penalty alone
+/// The PDRF in its fixed float32 order, with the powers of `u` flushed to zero below the normal range; `r_b` and `r_d`
+/// are the piece's reciprocals of max B and max D, each rounded once ([`reciprocal`]). Every addition is inside an
+/// explicit fused multiply-add and no other product feeds an addition, so a GPU compiler has nothing to contract and
+/// every backend gets the same bits. Without `daf_term`, the penalty alone
 #[inline]
 pub fn pdrf(b: f32, r_b: f32, d: f32, r_d: f32, form: PenaltyForm, daf_term: bool) -> f32 {
     let t = b * r_b;
@@ -69,7 +69,7 @@ pub fn reciprocal(x: f32) -> f32 {
     1.0 / x
 }
 
-/// The invalidation ball of a path vertex (spec part B §2.6 step 3): the voxels strictly inside radius
+/// The invalidation ball of a path vertex: the voxels strictly inside radius
 /// `r = fma(scale, dbf, const)`, tested in float32 as `a² × |Δ|² < r × r` over the bounding cube of half-width `⌊r / a⌋`
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Ball {
@@ -93,7 +93,7 @@ impl Ball {
     }
 }
 
-/// The penalty DBF of §2.5
+/// The penalty DBF
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Penalty {
     /// `B = DBF`
@@ -102,19 +102,19 @@ pub enum Penalty {
     P2,
 }
 
-/// The penalty term of the PDRF (§2.5)
+/// The penalty term of the PDRF
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PenaltyForm {
-    /// `(1 - (B / max B)^2)^16`, rev 3's form, an alternative since rev 3.1
+    /// `(1 - (B / max B)^2)^16`, an alternative form
     Squared,
-    /// The README's `(1 - B / max B)^16`, the default since rev 3.1
+    /// The README's `(1 - B / max B)^16`, the default
     Unsquared,
 }
 
 /// The distances the invalidation radius `scale * r + const` uses
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Inval {
-    /// The output DBF (spec §2.6)
+    /// The output DBF
     Dbf,
     /// The penalty DBF
     Penalty,
@@ -122,7 +122,7 @@ pub enum Inval {
     Thin,
 }
 
-/// The voxel the root search starts from (§2.3)
+/// The voxel the root search starts from
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RootStart {
     /// The piece's first voxel in C order
@@ -139,7 +139,7 @@ pub enum RootStart {
     FaceFar,
 }
 
-/// How a face region's mandatory target is picked among its 2D distance maxima (§2.4)
+/// How a face region's mandatory target is picked among its 2D distance maxima
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FacePick {
     /// The README's filters in turn: nearest the region's centroid, the plane's centre, the nearest plane corner and
@@ -153,8 +153,8 @@ pub enum FacePick {
     Lowest,
 }
 
-/// The open choices of spec part B §5; [`Choices::default`] is the spec's default for each (rev 3), except where
-/// fixture parity settled it otherwise: the root starts at the first border target
+/// The skeletoniser's open choices; [`Choices::default`] is the combination that reproduces the reference skeletons,
+/// with the root starting at the first border target
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Choices {
     pub penalty: Penalty,
@@ -167,7 +167,7 @@ pub struct Choices {
     pub mandatory_first: bool,
     /// count the target's own PDRF in the path cost
     pub count_target: bool,
-    /// add `D / max D` to the PDRF (spec §2.5); off leaves the penalty term alone
+    /// add `D / max D` to the PDRF; off leaves the penalty term alone
     pub daf_term: bool,
     /// invalidate only the ball voxels connected to its centre inside the ball, else every piece voxel in it
     pub ball_connected: bool,
@@ -198,7 +198,7 @@ impl Default for Choices {
 }
 
 impl Choices {
-    /// The defaults changed by a comma-separated list such as `penalty=p1,root=f`, for settling the open choices
+    /// The defaults changed by a comma-separated list such as `penalty=p1,root=f`, for comparing the open choices
     ///
     /// Keys: `penalty` (p1, p2), `form` (squared, unsquared), `root` (c, f, dbf, face, facelast, facefar), `face`
     /// (readme, centroid, centroidhigh, lowest), `regions` (8, 4), `mandatory` (first, last), `target` (free, counted),
@@ -256,7 +256,7 @@ impl Choices {
     }
 }
 
-/// One slab's fields for B7's field-level test (spec part B §4.7): DBF, `B`, `D` and `P` as float32 bit patterns
+/// One slab's fields for the field-level test: DBF, `B`, `D` and `P` as float32 bit patterns
 /// indexed by slab voxel, with `UNREACHED` outside every traced piece, and each traced piece's root
 #[cfg(feature = "testing")]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -296,7 +296,7 @@ mod tests {
 
     #[test]
     fn radius_is_correctly_rounded() {
-        // the spec's example: an uncorrected float32 square root returns the wrong neighbour here
+        // an uncorrected float32 square root returns the wrong neighbour here
         let n = 2 * 2 + 7947 * 7947;
         let exact = (f64::from(n)).sqrt();
         let r = radius(n, 1.0);
@@ -309,8 +309,8 @@ mod tests {
 
     #[test]
     fn ball_is_strict() {
-        // the line-stub masks of B5: DBF 2 at a = 2 gives r = 4, so a tip 2 voxels straight off the line (d2 = 4) or
-        // at the knight offset (1, 2) pooled (d2 = 5) is outside, and one voxel off is inside
+        // the synthetic line-stub masks: DBF 2 at a = 2 gives r = 4, so a tip 2 voxels straight off the line (d2 = 4)
+        // or at the knight offset (1, 2) pooled (d2 = 5) is outside, and one voxel off is inside
         let b = Ball::new(2.0, 1.0, 2.0, 2.0);
         assert_eq!(b.k, 2);
         assert!(b.contains(1) && b.contains(2) && b.contains(3));

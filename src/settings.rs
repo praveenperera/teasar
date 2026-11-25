@@ -1,4 +1,4 @@
-//! The two supported settings sets and the one table of what each method accepts (spec part A §2.4)
+//! The two supported settings sets and the one table of what each method accepts
 //!
 //! A call names its set; every other settings value it passes must equal that set's. The set is never inferred from
 //! the values, so a configuration that matches a set's numbers but not its slab geometry cannot pass as that set
@@ -56,8 +56,8 @@ pub enum Field {
     FixBranching,
     /// A free field: any bool, applied with villa's per-slab rule
     FixBorders,
-    /// A free field, accepted with either set: `'best'`, the order of part B §2.6; `'kimimaro'` raises
-    /// `UnsupportedSettings` until its addendum is in the spec
+    /// A free field, accepted with either set: `'best'`, the farthest-first order, or `'kimimaro'`,
+    /// compatibility mode
     TargetOrder,
 }
 
@@ -93,7 +93,7 @@ const SKEL_FIELDS: &[Field] = &[
     Field::TargetOrder,
 ];
 
-/// The accepted-settings table of §2.4, the one contract the bindings and every backend apply; every method also
+/// The accepted-settings table, the one contract the bindings and every backend apply; every method also
 /// requires `settings` to name a set
 pub const ACCEPTED: [Accepted; 4] = [
     Accepted { method: Method::PrepareLabels, fields: PREP_FIELDS, slab_thickness: false },

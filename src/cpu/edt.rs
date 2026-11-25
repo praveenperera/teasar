@@ -1,4 +1,4 @@
-//! Exact squared Euclidean distance transforms of a piece-id array (spec part B §2.2, §2.4 and §2.5)
+//! Exact squared Euclidean distance transforms of a piece-id array
 //!
 //! Separable, one axis at a time (Felzenszwalb and Huttenlocher's lower envelope of parabolas). Along each line the
 //! envelope is built per run of equal id, from the run's own values plus the first voxel of another id on each side,
@@ -258,7 +258,7 @@ mod tests {
 
     #[test]
     fn adjacent_rows_see_each_other() {
-        // spec part B §2.2: rows of ids 1 and 2 hold no boundary along x, only across y
+        // rows of ids 1 and 2 hold no boundary along x, only across y
         let mut ids = vec![1u32; 120];
         ids[60..].fill(2);
         assert!(edt(&ids, [1, 2, 60], [false; 3]).iter().all(|&d| d == 1));

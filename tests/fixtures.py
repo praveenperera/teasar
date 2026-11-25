@@ -1,4 +1,4 @@
-"""B1 fixture access for the acceptance tests (spec part A §6).
+"""Access to the fixture box and its per-slab fixtures for the tests and scripts.
 
 The packed block for z 8068-9600 is built once from the zarr box and cached under the repo's ``_scratch``, so tests
 never hold the 3.6 GB unpacked box in memory.
@@ -34,14 +34,14 @@ def need(name: str, what: str) -> Path:
     sys.exit(message)
 
 
-# spec part A §6's data/ directory, with the inputs and per-slab fixtures; the fixture set is not part of this repo, so
-# there is no default, and tests that need it skip when TEASAR_DATA is unset
+# the fixture set's data/ directory, with the inputs and per-slab fixtures; the fixture set is not part of this repo,
+# so there is no default, and tests that need it skip when TEASAR_DATA is unset
 DATA = env_dir("TEASAR_DATA")
 DATA_WHAT = "the fixture set's data/ directory"
 NO_DATA = f"set TEASAR_DATA to {DATA_WHAT}"
-# fixture subdirectories of data/
-B1 = "fixtures/b1"
-B1_DS4 = "fixtures/b1_ds4"
+# fixture subdirectories of data/: the box's published_0211 slabs, and its villa_default (ds4) slabs
+BOX_SLABS = "fixtures/b1"
+BOX_SLABS_DS4 = "fixtures/b1_ds4"
 
 
 def data(*parts: str) -> Path:
@@ -54,7 +54,7 @@ Z0, Z1 = 8068, 9600
 YX = 1536
 SHAPE = (Z1 - Z0, YX, YX)
 
-# keyword arguments for each settings set (spec part A §2.4): PUBLISHED and VILLA for prepare_from_block,
+# keyword arguments for each settings set: PUBLISHED and VILLA for prepare_from_block,
 # SKEL_* for skeletonize, EXTRACT_* for extract, and PREP_ARGS for prepare_labels' positional values
 PUBLISHED = dict(settings="published_0211", downsample=2, min_count=50, max_count=80000)
 VILLA = dict(settings="villa_default", downsample=4, min_count=6, max_count=10000)
@@ -66,7 +66,7 @@ PREP_ARGS = {"published_0211": (2, 50, 80000), "villa_default": (4, 6, 10000)}
 # villa's h ribbon depth for each set; vertical slabs are 4 thick in both
 H_DEPTH = {"published_0211": 2, "villa_default": 4}
 
-# spec part A §2.5: a call's pooled voxels, summed over its slabs
+# the baseline partition's limit on a call's pooled voxels, summed over its slabs
 CALL_POOLED = 1 << 26
 
 
@@ -77,10 +77,10 @@ def box():
 
 
 def block() -> np.ndarray:
-    """The B1 block: (1532, 1536, 192) uint8, bit-packed along x, most significant bit first."""
+    """The fixture box's block: (1532, 1536, 192) uint8, bit-packed along x, most significant bit first."""
     # the cache is built from TEASAR_DATA, so a run without it skips even when the cache exists
     data()
-    path = CACHE / "b1_block.npy"
+    path = CACHE / "box_block.npy"
     if path.exists():
         return np.load(path)
     arr = box()
@@ -95,12 +95,12 @@ def block() -> np.ndarray:
     return out
 
 
-def slab_keys(root: str = B1) -> list[str]:
-    """The B1 slab keys in index order: 384 at published_0211, or 144 with root=B1_DS4 (villa_default)."""
+def slab_keys(root: str = BOX_SLABS) -> list[str]:
+    """The box's slab keys in index order: 384 at published_0211, or 144 with root=BOX_SLABS_DS4 (villa_default)."""
     return list(json.loads(data(root, "index.json").read_text())["slabs"])
 
 
-def listed_slab_keys(root: str = B1) -> list[str]:
+def listed_slab_keys(root: str = BOX_SLABS) -> list[str]:
     """slab_keys for collection-time parameter lists: empty when TEASAR_DATA is unset, where the tests skip"""
     return slab_keys(root) if DATA is not None else []
 
@@ -126,7 +126,7 @@ def pooled_voxels(spec: tuple[str, int, int], shape=SHAPE, ds: int = 2) -> int:
 
 
 def baseline_partition(items: list, pooled, limit: int = CALL_POOLED) -> list[list]:
-    """Spec part A §2.5's baseline partition: items in list order, packed greedily into calls, starting a new call
+    """The baseline partition: items in list order, packed greedily into calls, starting a new call
     whenever the next item would take the call's pooled total (`pooled(item)`) over `limit`."""
     calls, cur, total = [], [], 0
     for item in items:
@@ -161,16 +161,16 @@ def unpack_slab(blk: np.ndarray, spec: tuple[str, int, int], x_size: int = YX) -
     return np.ascontiguousarray(bits[:, :, lo - 8 * b0 : hi - 8 * b0])
 
 
-def fixture(key: str, root: str = B1):
+def fixture(key: str, root: str = BOX_SLABS):
     return np.load(data(root, f"{key}.npz"))
 
 
-def fixture_labels(key: str, root: str = B1) -> np.ndarray:
+def fixture_labels(key: str, root: str = BOX_SLABS) -> np.ndarray:
     return fixture(key, root)["labels"]
 
 
 def size_filter_fixture(settings: str):
-    """A3's size-filter boundary slab for one set: `binary`, villa's `labels` and the four pooled `counts`."""
+    """The size-filter boundary slab for one set: `binary`, villa's `labels` and the four pooled `counts`."""
     return np.load(data("fixtures/a3", f"size_filter_{settings}.npz"))
 
 
@@ -190,8 +190,8 @@ def reference_labels(binary: np.ndarray, ds: int, min_count: int, max_count: int
 
 
 # the host threads timed runs use: a Device reads TEASAR_CPU_THREADS itself (default: the performance cores), and a
-# CpuDevice gets the same count (0, all cores, when unset); part B B9 compares N host threads with N Kimimaro
-# workers, so every timing prints last_stats() with the count it ran on
+# CpuDevice gets the same count (0, all cores, when unset); a timing against Kimimaro compares N host threads with N
+# Kimimaro workers, so every timing prints last_stats() with the count it ran on
 CPU_THREADS = int(os.environ.get("TEASAR_CPU_THREADS", "0"))
 
 

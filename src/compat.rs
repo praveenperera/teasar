@@ -1,21 +1,21 @@
-//! Compatibility mode, `target_order='kimimaro'` (spec addendum KM): the rules both backends share, and the two
-//! orderings the mode takes from the running Python environment
+//! Compatibility mode, `target_order='kimimaro'`, which reproduces Kimimaro's skeletons: the rules both backends share,
+//! and the two orderings the mode takes from the running Python environment
 //!
-//! Every float operation here is one IEEE float32 operation with no fused multiply-add, as KM0 requires; the CPU
-//! evaluates them without flushing subnormals
+//! Every float operation here is one IEEE float32 operation with no fused multiply-add, as the reference computes them;
+//! the CPU evaluates them without flushing subnormals
 
 use std::sync::OnceLock;
 
 use crate::Result;
 
-/// The largest maximum boundary distance (physical units) compatibility mode traces (KM1); a call with a piece
+/// The largest maximum boundary distance (physical units) compatibility mode traces; a call with a piece
 /// above it raises `SomaUnsupported`
 pub const SOMA_LIMIT: f32 = 1100.0;
 
-/// The penalty multiplier of KM6
+/// The multiplier of the penalty field's boundary term
 pub const PENALTY_SCALE: f32 = 5000.0;
 
-/// The traversal order and the target order compatibility mode takes from villa's Python environment (KM5.1, KM7)
+/// The traversal order and the target order compatibility mode takes from villa's Python environment
 ///
 /// The Python layer implements it with CPython's built-in set and numpy's default argsort; nothing else may stand in
 /// for them, since the reference's output depends on their exact orders
@@ -28,12 +28,12 @@ pub trait CompatOrders: Sync {
     fn argsorts(&self, lists: &[&[f32]]) -> Result<Vec<Vec<u32>>>;
 }
 
-/// The order in which targets are traced (spec part A §2.4)
+/// The order in which targets are traced
 #[derive(Clone, Copy)]
 pub enum TargetOrder<'a> {
-    /// Part B's farthest-first order
+    /// The farthest-first order
     Best,
-    /// The reference's order (addendum KM), with the orderings it takes from Python
+    /// Kimimaro's order, with the orderings it takes from Python
     Kimimaro(&'a dyn CompatOrders),
 }
 
@@ -46,8 +46,8 @@ impl std::fmt::Debug for TargetOrder<'_> {
     }
 }
 
-/// `Bmax^fl32(1.01)` as the reference platform computes it in float32 (KM6): the correctly rounded power, except at
-/// the values of the addendum's table, where the platform's single-precision power is not correctly rounded
+/// `Bmax^fl32(1.01)` as the reference platform computes it in float32: the correctly rounded power, except at
+/// the values of a fixed table, where the platform's single-precision power is not correctly rounded
 pub fn bmax_power(bmax: f32) -> f32 {
     let table = pow_table();
     match table.binary_search_by_key(&bmax.to_bits(), |&(b, _)| b) {
@@ -61,11 +61,11 @@ fn correctly_rounded_pow(x: f32, e: f32) -> f32 {
     f64::from(x).powf(f64::from(e)) as f32
 }
 
-/// The addendum's power table as sorted `(Bmax bits, power bits)` pairs
+/// The table of those powers as sorted `(Bmax bits, power bits)` pairs
 fn pow_table() -> &'static [(u32, u32)] {
     static TABLE: OnceLock<Vec<(u32, u32)>> = OnceLock::new();
     TABLE.get_or_init(|| {
-        let text = include_str!("../data/km6_pow.txt");
+        let text = include_str!("../data/pow_table.txt");
         let mut rows: Vec<(u32, u32)> = text
             .lines()
             .filter(|l| !l.starts_with('#') && !l.is_empty())
@@ -80,7 +80,7 @@ fn pow_table() -> &'static [(u32, u32)] {
     })
 }
 
-/// A piece's penalty field (KM6): `P` for a voxel of boundary distance `b` and geodesic distance `d`, given the
+/// A piece's penalty field: `P` for a voxel of boundary distance `b` and geodesic distance `d`, given the
 /// piece's `m = fl32(1 / pw)` and `r_d = fl32(1 / maxD)` (`None` when maxD is 0)
 #[inline]
 pub fn penalty(b: f32, m: f32, d: f32, r_d: Option<f32>) -> f32 {
@@ -101,20 +101,20 @@ pub fn penalty_m(bmax: f32) -> f32 {
     1.0 / bmax_power(bmax)
 }
 
-/// The float32 lengths of a 26-step changing 1, 2 or 3 coordinates (KM6; index 0 unused)
+/// The float32 lengths of a 26-step changing 1, 2 or 3 coordinates (index 0 unused)
 pub fn step_lengths(a: f32) -> [f32; 4] {
     let a2 = a * a;
     [0.0, a, (a2 + a2).sqrt(), (a2 + a2 + a2).sqrt()]
 }
 
-/// The claim radius of a path voxel (KM9): `fl32(fl32(scale × DBF) + const)`, which is `fl32(DBF + 2)` at villa's
+/// The claim radius of a path voxel: `fl32(fl32(scale × DBF) + const)`, which is `fl32(DBF + 2)` at villa's
 /// settings
 #[inline]
 pub fn claim_radius(dbf: f32, scale: f32, constant: f32) -> f32 {
     scale * dbf + constant
 }
 
-/// The KM9 distance between voxels `d2` squared index units apart at pooling `a`; exact under the 2^24 the claim
+/// The claim distance between voxels `d2` squared index units apart at pooling `a`; exact under the 2^24 the claim
 /// radii keep it below
 #[inline]
 pub fn claim_dist(d2: [u32; 3], a: f32) -> f32 {

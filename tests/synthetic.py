@@ -1,4 +1,4 @@
-"""B5 synthetic shapes (spec part B rev 3.1 §4.5): the masks, the reference output for them, and the pass conditions.
+"""Synthetic shapes: the masks, the reference output for them, and the pass conditions.
 
 Track points are physical units (pooled index × 2 at ``published_0211``), which equal full-resolution voxels; the
 reference's ``ends``, ``leaves`` and ``branch_points`` are pooled indices.
@@ -24,9 +24,9 @@ BARS = {
 SOLIDS = ("solid_1x5x200", "solid_3x9x60", "solid_one_hole")
 # the line-stub masks: a forced line on row 5 with a stub at column 100; the stub tips the strict ball leaves valid
 LINES = ("line_stub1", "line_stub2", "line_knight", "line_stub3")
-# B5 conditions that compare against the reference's choice of next ordinary target, which the spec leaves to the
-# 'kimimaro' addendum; before it lands a miss there is a known gap, reported, not a failure (spec part B §4, §4.5)
-KNOWN_GAP = ("L",)
+# shapes whose conditions compare against the reference's choice of next ordinary target, which only
+# target_order='kimimaro' reproduces; under 'best' a miss there is reported, not a failure
+KIMIMARO_ORDER_ONLY = ("L",)
 
 
 def masks() -> dict[str, np.ndarray]:
@@ -40,8 +40,7 @@ def reference() -> dict:
 
 def tracks(packed) -> list[np.ndarray]:
     """villa's tracks for one Packed at offset (0, 0, 0)."""
-    # the villa checkout of spec part A §0 and §6, for its fast_tracks; it is not part of this repo, so there is no
-    # default
+    # a villa checkout, for its fast_tracks; it is not part of this repo, so there is no default
     villa = need("TEASAR_VILLA", "a villa checkout (the directory holding spiral-fitting/fast_tracks.py)")
     sys.path.insert(0, str(villa / "spiral-fitting"))
     import fast_tracks
@@ -139,7 +138,7 @@ def is_forest(packed) -> bool:
 
 
 def check(name: str, mask: np.ndarray, packed, ref: dict) -> list[str]:
-    """The §4.5 pass conditions for one shape; returns the failures."""
+    """The pass conditions for one shape; returns the failures."""
     fails: list[str] = []
     cand = tracks(packed)
     rtracks = [np.asarray(t, float) for t in ref["tracks_full"]]

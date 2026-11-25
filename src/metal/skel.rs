@@ -1,4 +1,4 @@
-//! Host side of the part B kernels (`shaders/metal/skel.metal`): batch planning, the piece table, border-target
+//! Host side of the skeleton kernels (`shaders/metal/skel.metal`): batch planning, the piece table, border-target
 //! order, the resume loop and the packed output
 //!
 //! A call's slabs are split into internal batches of at most `batch_voxels` voxels (a larger slab is a batch of its
@@ -7,9 +7,9 @@
 //! 1. after the pieces, to read the piece table and plan each kept piece's workspace
 //! 2. after the slab-wide stages, to put each piece's border targets in tracing order
 //! 3. after every path-loop dispatch, to drop finished pieces; a piece that spends its work budget resumes in the
-//!    next dispatch from the state it left in device memory (spec part B §3.3)
+//!    next dispatch from the state it left in device memory
 //!
-//! The output is assembled on the host from each piece's vertex list, a deviation from §3.1's GPU scatter: with
+//! The output is assembled on the host from each piece's vertex list rather than scattered on the GPU: with
 //! shared memory the host reads the lists in place
 
 use std::cmp::Reverse;
@@ -180,7 +180,7 @@ struct SkState {
     runs: u32,
 }
 
-/// Call-wide profile counters (spec part B §3.3)
+/// Call-wide profile counters
 #[derive(Debug, Default, Clone, Copy)]
 pub struct SkelProfile {
     pub batches: u64,
@@ -251,7 +251,7 @@ impl SkelProfile {
     }
 }
 
-/// The part B pipeline on one device
+/// The skeleton pipeline on one device
 pub struct Skel {
     pub batch_voxels: usize,
     pub budget: u32,
@@ -266,7 +266,7 @@ pub struct Skel {
     buckets: bool,
     /// the threads that trace host pieces beside the GPU loop, apart from the thread driving the GPU
     host: Arc<rayon::ThreadPool>,
-    /// where this call's pieces ran (spec part A §1.4), always collected
+    /// where this call's pieces ran, always collected
     pub stats: CallStats,
 }
 
@@ -355,7 +355,7 @@ impl Skel {
     }
 
     /// The skeletons of every slab of `labels`, each with its own effective `fix_borders`; pieces over `large_default`
-    /// voxels fall back to the host when `TEASAR_LARGE_PIECE` is unset (spec part B §3.3)
+    /// voxels fall back to the host when `TEASAR_LARGE_PIECE` is unset
     pub fn run(
         &mut self,
         gpu: &Gpu,
@@ -871,7 +871,7 @@ fn plan_views(
         let strides = [sl.y * sl.x, sl.x, 1];
         let np = b.slab_pieces[s + 1] - b.slab_pieces[s];
         let total = sl.z * sl.y * sl.x;
-        // a piece that fills the array measures to the positions just outside it (§2.2)
+        // a piece that fills the array measures to the positions just outside it
         let full = np == 1 && b.psize[b.slab_pieces[s] as usize] == total;
         // bit k of a view's border is axis k
         let bits = |f: &dyn Fn(u32) -> bool| (0..3).fold(0u32, |acc, k| acc | (u32::from(f(shape[k])) << k));
@@ -886,7 +886,7 @@ fn plan_views(
         let dbf_border = if full { 7 } else { 0 };
         push(&mut views, whole(0, dbf_border));
         if p2 {
-            // the axes longer than 2 (§2.5); with none, the DBF's own border
+            // the axes longer than 2; with none, the DBF's own border
             let long = bits(&|len| len > 2);
             push(&mut views, whole(pen, if long == 0 { dbf_border } else { long }));
         }
@@ -1117,7 +1117,7 @@ fn run_host(b: &Batch, st: &Staged, jobs: &[HostJob], skel: &SkelSettings, choic
         .collect()
 }
 
-/// Every slab's packed skeletons from the pieces' vertex lists (spec part B §2.8)
+/// Every slab's packed skeletons from the pieces' vertex lists
 fn assemble(b: &Batch, st: &Staged, states: &[SkState], host: &[HostSkel], skel: &SkelSettings) -> Vec<Packed> {
     let mut by_k = vec![usize::MAX; b.kept.len()];
     for (i, h) in host.iter().enumerate() {
@@ -1135,7 +1135,7 @@ fn assemble(b: &Batch, st: &Staged, states: &[SkState], host: &[HostSkel], skel:
             let sl = b.slabs[s];
             let range = b.slab_pieces[s] as usize..b.slab_pieces[s + 1] as usize;
             // labels with a kept piece, ordered by the first voxel of a kept piece in a Fortran-order scan: dust
-            // pieces do not count (the fixtures' order on 5 of the 144 villa_default slabs; spec §2.8 is silent)
+            // pieces do not count, matching the reference output on the slabs where the two scans differ
             let mut first: Vec<(u32, u32)> =
                 range.clone().filter(|&p| b.kidx[p] != NONE).map(|p| (b.plabel[p], b.pff[p])).collect();
             first.sort_unstable();
