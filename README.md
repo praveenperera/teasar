@@ -1,25 +1,17 @@
 # teasar
 
 TEASAR skeletonisation of [villa](https://github.com/ScrollPrize/villa)'s surface-track slabs, written in Rust with
-PyO3 bindings. Its GPU backend today is Metal, for Apple GPUs; a pure-Rust CPU reference sits behind the same API.
+PyO3 bindings. Its GPU backend is Metal, for Apple GPUs; a pure-Rust CPU reference sits behind the same API.
 Each backend is a Rust module behind its own Cargo feature (`metal`), so other GPU backends can sit beside it.
 
 teasar is an independent implementation. It contains no code from Kimimaro or Brook; it was written from its
-specification, the TEASAR paper and published GPU algorithms (see
-[CLEANROOM.md](https://github.com/praveenperera/teasar/blob/master/CLEANROOM.md)).
+specification, the TEASAR paper and published GPU algorithms.
 
 ## Credits
 
 - Sato, Bitter, Bender, Kaufman and Nakajima, "TEASAR: tree-structure extraction algorithm for accurate and robust
   skeletons", Pacific Graphics 2000, doi:10.1109/PCCGA.2000.883951
 - [Kimimaro](https://github.com/seung-lab/kimimaro) (seung-lab), the reference whose behaviour this package matches
-
-## Status
-
-| part | what | state |
-|---|---|---|
-| A | package, Python API, limits, unpack, binarize, connected components, max-pool, size filter | built; CPU and Metal |
-| B | the TEASAR core: distance fields, paths, invalidation, skeleton assembly | built; CPU and Metal; Metal runs pieces over 1,000 pooled voxels on host threads (see below). In `target_order='kimimaro'` the skeletons equal the reference's on the 16 acceptance masks, and the leaf and branch-point counts on the acceptance box are within 0.7% of the reference's |
 
 ## Install
 
@@ -98,7 +90,9 @@ dev.last_stats()   # {"wall_s", "gpu_busy_s", "host_threads", "cpu_pieces", "cpu
   with CPython and numpy versions whose orders equal the tested ones (CPython 3.14.10, numpy 2.5.2). Both backends run
   its skeleton stage on host threads; the Metal backend runs the prepare stages on the GPU first. A call with a piece
   whose largest boundary distance exceeds 1,100 raises `tm.SomaUnsupported` before any path search, with `slab` set
-  to the first such slab; villa then runs that slab on its CPU path.
+  to the first such slab; villa then runs that slab on its CPU path. On the test fixtures its skeletons equal
+  Kimimaro's on 16 synthetic masks, and its leaf and branch-point counts on a 384-slab test box are within 0.7% of
+  Kimimaro's.
 - Each skeleton is in sorted form: vertices in increasing C-order index of their voxel, edges written (lower,
   higher), edge rows sorted.
 - In `target_order='best'` the root is the first border target, the penalty is the README's
@@ -148,7 +142,7 @@ Input checks run before any work and raise `tm.InputTooLarge`; the output check 
 - `OutputTooLarge.slab` is the index, in the call's slab list (thin slabs included), of the first slab whose result
   takes the running total over the limit. Rerun the slabs before it in one call and continue from it in a new one.
 - Split a long slab list with the baseline partition: keep the slabs in order and start a new call whenever the next
-  slab would take the call's pooled total over 2^26 (`tests/fixtures.py`'s `slab_calls`; 6 calls on B1).
+  slab would take the call's pooled total over 2^26 (`tests/fixtures.py`'s `slab_calls`; 6 calls on the 384-slab test box).
 - Calls release the GIL; one call at a time runs on a device. Returned arrays are new and owned by the caller.
 - `TEASAR_PROFILE=1` prints per-kernel GPU time and the internal batching to stderr after each Metal call.
 
@@ -174,13 +168,14 @@ host pieces into hybrid-split and fallback pieces.
 
 ## CPU reference contract
 
-Part A: the CPU reference returns exactly what the Metal backend returns. It uses a different algorithm (union-find
-over x-runs) from the GPU (union-find over the 6-connected pieces of each pooled cell), so each checks the other.
+The CPU reference returns exactly what the Metal backend returns. Its connected components use a different algorithm
+(union-find over x-runs) from the GPU's (union-find over the 6-connected pieces of each pooled cell), so each checks
+the other.
 
-Part B: bit-identity. The CPU reference's skeletons equal the Metal backend's on the fixture slabs
-in both target orders, and a `testing` build's field-level dump (`_fields`) shows each piece's DBF, `B`, `D`, `P` and
-root from the GPU path loop equal the CPU's bit for bit, on the B1 slabs and the B5 masks. In
-`target_order='kimimaro'` both backends run the same host code for the skeleton stage.
+The CPU reference's skeletons equal the Metal backend's bit for bit on the fixture slabs in both target orders, and a
+`testing` build's field-level dump (`_fields`) shows each piece's DBF, `B`, `D`, `P` and root from the GPU path loop
+equal the CPU's bit for bit, on the test box's slabs and the synthetic masks. In `target_order='kimimaro'` both
+backends run the same host code for the skeleton stage.
 
 ## Development
 
@@ -195,7 +190,7 @@ maturin develop --uv --release -F python,metal,testing   # testing adds the test
 
 ## Tests
 
-`pytest tests` runs the acceptance tests on the CPU reference, on a `testing` build. GPU runs set `TEASAR_GPU=1`
+`pytest tests` runs the test suite on the CPU reference, on a `testing` build. GPU runs set `TEASAR_GPU=1`
 (`scripts/gpu_tests.sh`, and `scripts/gpu_validate.sh` under Metal's API and shader validation). The fixture set,
 villa and the parity harness are not part of this repo, so their paths have no defaults:
 
@@ -206,9 +201,9 @@ export TEASAR_VILLA=$TEASAR_FIXTURES/villa      # a villa checkout, for spiral-f
 export TEASAR_HARNESS=/path/to/parity/harness   # run_candidate.py, compare.py and skel_counts.py
 ```
 
-Tests that read the fixture set skip with a message naming `TEASAR_DATA` when it is unset, and the B5 track checks
-name `TEASAR_VILLA`. `scripts/b1_selfcheck.sh`, `b1_lock.sh` and `b1_counts.py` run the harness on box B1 against the
-reference in the fixture root's `ref/`, on the repo's `.venv`, or with `$TEASAR_PYTHON` on another interpreter, such
+Tests that read the fixture set skip with a message naming `TEASAR_DATA` when it is unset, and the track checks on
+the synthetic masks name `TEASAR_VILLA`. `scripts/parity_check.sh`, `hash_lock.sh` and `count_check.py` run the
+harness on the test box against the reference in the fixture root's `ref/`, on the repo's `.venv`, or with `$TEASAR_PYTHON` on another interpreter, such
 as a clean venv with a release wheel installed. The timing scripts
 (`scripts/bench_extract.py`, `bench_prep.py`, `prof_skel.py`) print `last_stats()`, summed over each pass's calls,
 beside every timing; set `TEASAR_CPU_THREADS` for the host threads.
