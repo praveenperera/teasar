@@ -1,0 +1,7 @@
+/target
+/_scratch
+/.venv
+__pycache__/
+*.so
+*.pyc
+/dist

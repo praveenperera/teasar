@@ -1,0 +1,57 @@
+[package]
+name = "teasar"
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+authors = ["Praveen Perera"]
+repository = "https://github.com/praveenperera/teasar"
+documentation = "https://docs.rs/teasar"
+readme = "README.md"
+description = "TEASAR skeletonisation of villa's surface-track slabs, with a Metal backend for Apple GPUs and a pure-Rust CPU reference"
+keywords = ["teasar", "skeletonization", "metal", "vesuvius-challenge", "connectomics"]
+categories = ["science", "computer-vision"]
+# what a build reads: the Metal shaders and the compatibility mode's power table are embedded at compile time
+include = [
+    "/src/**",
+    "/shaders/**",
+    "/data/km6_pow.txt",
+    "/examples/**",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/CLEANROOM.md",
+    "/LICENSE",
+]
+
+[lib]
+name = "teasar"
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# metal is on by default and a no-op off macOS, where none of its dependencies are built
+default = []
+# the PyO3 module teasar._core
+python = ["dep:pyo3", "dep:numpy", "dep:ndarray"]
+# the Metal backend; it builds only on macOS and is a no-op elsewhere
+metal = ["dep:objc2", "dep:objc2-foundation", "dep:objc2-metal", "dep:bytemuck", "dep:color-eyre"]
+# hooks the acceptance tests need: lowered limits, small internal batches, an injected GPU failure
+testing = []
+
+[dependencies]
+ndarray = { version = "0.17", optional = true }
+rayon = "1.12"
+numpy = { version = "0.30.0", optional = true }
+pyo3 = { version = "0.30.1", optional = true, features = ["extension-module", "abi3-py311"] }
+
+# the thread CPU clock of the kimimaro-mode profile
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+bytemuck = { version = "1", features = ["derive"], optional = true }
+color-eyre = { version = "0.6.5", optional = true }
+objc2 = { version = "0.6.5", optional = true }
+objc2-foundation = { version = "0.3.2", optional = true, default-features = false, features = ["std", "NSString", "NSError", "NSArray", "NSData", "NSRange", "NSProcessInfo", "NSObject"] }
+objc2-metal = { version = "0.3.2", optional = true, default-features = false, features = ["std", "MTLAllocation", "MTLArgument", "MTLBuffer", "MTLCommandBuffer", "MTLCommandEncoder", "MTLCommandQueue", "MTLComputeCommandEncoder", "MTLComputePass", "MTLComputePipeline", "MTLCounters", "MTLDataType", "MTLDevice", "MTLLibrary", "MTLResource", "MTLTypes", "block2", "objc2-core-foundation"] }
+
+[profile.release]
+debug = 1
